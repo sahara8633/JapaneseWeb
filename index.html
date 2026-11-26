@@ -7,107 +7,65 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-/* VOICE everyday study tool, calm and quick
-   IDEA a flash card from a Japanese school kana drill, graded in vermilion like a teacher's red pen
-   PICTURE the big white card with the kana in textbook handwriting, on an indigo field
-   COLOUR indigo (aizome) field, white card, sumi ink, vermilion for mistakes, bright indigo for correct
-   TYPE Noto Sans JP for kana (standard printed gothic) + Noto Sans KR for everything else
-   LAYOUT laptop: card left, controls right inside the indigo band; phone: title, card, controls stacked */
-:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0e1220);--ink:light-dark(#16181f,#e9ebf3);--muted:light-dark(#5b6070,#9aa1b5);--field:light-dark(#1d2f6f,#141d45);--fieldInk:#f2f4fb;--card:light-dark(#ffffff,#f6f5f0);--cardInk:#16181f;--line:light-dark(#dde1ec,#2a3150);--panel:light-dark(#f4f6fb,#161b2e);--ok:light-dark(#2f55d4,#7d9bff);--bad:#e0442f;--badSoft:light-dark(#fde9e5,#3a1a16);--okSoft:light-dark(#e6ecff,#1b2752)}
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
-*{box-sizing:border-box;min-width:0}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
-.top{background:var(--field);color:var(--fieldInk);padding:clamp(20px,3vw,36px) max(5vw,16px) clamp(28px,4vw,48px)}
-.wrap{max-width:1100px;margin:0 auto}
-.head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:22px}
-h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
-.streak{display:flex;gap:18px;font-size:14px;opacity:.95}
-.streak b{display:block;font-size:24px;line-height:1.1;font-weight:800}
-.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(16px,3vw,32px);align-items:stretch}
-.card{position:relative;background:var(--card);color:var(--cardInk);border-radius:18px;min-height:340px;display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.25),0 14px 30px rgba(0,0,0,.18);overflow:hidden}
-.card::after{content:"";position:absolute;inset:14px;border:1.5px dashed #c9cfdf;border-radius:10px;pointer-events:none}
-.kana{font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;font-weight:500;font-size:clamp(120px,18vw,190px);line-height:1;position:relative;z-index:1;transition:transform .15s}
-.kana.small{font-size:clamp(84px,12vw,130px)}
-.cardTop{position:absolute;top:24px;left:28px;right:28px;display:flex;justify-content:space-between;font-size:14px;color:#5b6070;z-index:1}
-.cardBot{position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:18px;font-weight:600;min-height:28px;z-index:1}
-.stamp{position:absolute;right:30px;bottom:24px;width:66px;height:66px;border:3px solid var(--bad);color:var(--bad);border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;transform:rotate(-12deg);opacity:0;z-index:2}
-.stamp.on{opacity:.9}
-.bar{position:absolute;left:0;top:0;height:5px;background:var(--ok);transition:width .25s}
-.side{background:var(--bg);color:var(--ink);border-radius:18px;padding:clamp(18px,2.4vw,28px);display:flex;flex-direction:column;gap:18px}
-.side h2{margin:0;font-size:20px;line-height:1.2}
-.lab{font-size:14px;color:var(--muted);margin-bottom:8px}
-.seg{display:flex;flex-wrap:wrap;gap:8px}
-.seg button,.chk{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-.seg button[aria-pressed=true]{background:var(--field);border-color:var(--field);color:#fff}
-.seg input{width:84px;min-height:44px;font:inherit;font-size:16px;padding:0 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink)}
-.chk{display:flex;align-items:center;gap:10px;width:100%;text-align:left}
-.chk input{width:20px;height:20px;accent-color:var(--field);margin:0;flex:none}
-.chk small{color:var(--muted);font-size:13px;margin-left:auto;white-space:nowrap}
-.checks{display:grid;gap:8px}
-.go{font:inherit;font-weight:800;font-size:18px;min-height:54px;border:0;border-radius:12px;background:var(--bad);color:#fff;cursor:pointer}
-.go.alt{background:var(--panel);color:var(--ink);border:1.5px solid var(--line);font-weight:600;font-size:16px}
-button:focus-visible,input:focus-visible{outline:3px solid var(--ok);outline-offset:2px}
-.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.opt{font:inherit;font-size:26px;font-weight:800;min-height:84px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;position:relative}
-.opt span{position:absolute;top:8px;left:12px;font-size:13px;font-weight:400;color:var(--muted)}
-.opt:hover{border-color:var(--ok)}
-.opt.ok{background:var(--okSoft);border-color:var(--ok);color:var(--ok)}
-.opt.bad{background:var(--badSoft);border-color:var(--bad);color:var(--bad)}
-.msg{min-height:24px;font-size:15px;color:var(--muted)}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{display:inline-flex;align-items:baseline;gap:6px;padding:6px 12px;border-radius:999px;background:var(--badSoft);color:var(--ink);font-size:14px}
-.chip b{font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;font-size:22px;color:var(--bad)}
-.chip i{font-style:normal;color:var(--muted);font-size:12px}
-.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.below{padding:clamp(24px,3vw,40px) max(5vw,16px)}
-.below h2{margin:0 0 10px;font-size:20px}
-.below p{margin:0 0 14px;color:var(--muted);max-width:66ch}
-.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;max-width:560px}
-.day{border-radius:10px;background:var(--panel);border:1.5px solid var(--line);padding:8px 4px;text-align:center;font-size:13px;color:var(--muted)}
-.day b{display:block;font-size:18px;color:var(--ink)}
-.day.on{background:var(--field);border-color:var(--field);color:#cfd6f2}
-.day.on b{color:#fff}
-[hidden]{display:none!important}
-.move{display:grid;gap:10px;max-width:640px}
-.move textarea{font:14px/1.4 ui-monospace,monospace;padding:10px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);width:100%;resize:vertical}
-@media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.card{min-height:280px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
+<link rel="stylesheet" href="style.css">
+<script>try{const t=localStorage.getItem('kana-theme');if(t==='light'||t==='dark'||t==='mix')document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <section class="top">
  <div class="wrap">
   <div class="head">
    <h1>히라가나 매일 연습</h1>
+   <div class="tools">
+    <div class="sw mini" id="themeSw" role="group" aria-label="화면 테마">
+     <button type="button" data-v="light">라이트</button><button type="button" data-v="dark">다크</button><button type="button" data-v="mix">라이트다크</button>
+    </div>
+    <div class="acct" id="acct" hidden>
+     <button type="button" class="acctBtn" id="loginBtn"><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>로그인</button>
+     <span class="me" id="me" hidden><i id="meAva" aria-hidden="true"></i><span id="meName"></span><button type="button" class="acctBtn ghost" id="logoutBtn">로그아웃</button></span>
+    </div>
+   </div>
+  </div>
+  <div class="bar2">
+   <div class="sw onField" id="tabs" role="tablist" aria-label="화면">
+    <button type="button" role="tab" id="tPractice" aria-controls="pPractice" aria-selected="true">연습</button><button type="button" role="tab" id="tRecords" aria-controls="pRecords" aria-selected="false">기록</button>
+   </div>
    <div class="streak"><div><b id="sStreak">0일</b>연속</div><div><b id="sToday">0</b>오늘 푼 문제</div></div>
   </div>
-  <div class="grid">
+  <div class="grid" id="pPractice" role="tabpanel" aria-labelledby="tPractice">
    <div class="card" id="card">
     <div class="bar" id="bar" style="width:0"></div>
     <div class="cardTop"><span id="cTL">오늘의 글자</span><span id="cTR"></span></div>
-    <div class="kana" id="kana">ぬ</div>
+    <div class="kana" id="kana" lang="ja">ぬ</div>
     <div class="cardBot" id="cBot">누</div>
     <div class="stamp" id="stamp">다시</div>
    </div>
 
    <div class="side" id="vSetup">
-    <h2>오늘 몇 문제 풀까요?</h2>
     <div>
-     <div class="lab">문제 수</div>
-     <div class="seg" id="nSeg">
-      <button type="button" data-n="10">10</button><button type="button" data-n="20">20</button><button type="button" data-n="30">30</button><button type="button" data-n="46">46</button>
-      <input id="nIn" type="number" min="1" max="200" inputmode="numeric" aria-label="직접 입력" placeholder="직접">
+     <div class="lab">글자</div>
+     <div class="sw" id="kSw" role="group" aria-label="출제할 글자">
+      <button type="button" data-v="h">히라가나</button><button type="button" data-v="k">가타카나</button><button type="button" data-v="mix">섞어서</button>
      </div>
     </div>
     <div>
      <div class="lab">문제 범위</div>
-     <div class="checks">
-      <label class="chk"><input type="checkbox" id="oBase" checked>기본 글자<small>あ~ん 46자</small></label>
-      <label class="chk"><input type="checkbox" id="oDak">탁점·반탁점<small>が ぱ 25자</small></label>
-      <label class="chk"><input type="checkbox" id="oYoon">작은 ゃゅょ<small>きゃ 33자</small></label>
-      <label class="chk"><input type="checkbox" id="oKata">가타카나로 출제<small>나중에</small></label>
+     <div class="tiles">
+      <button type="button" class="tile" data-o="base"><i class="ck" aria-hidden="true"></i><b lang="ja">あ</b><span>기본 글자</span><small>46자</small></button>
+      <button type="button" class="tile" data-o="dak"><i class="ck" aria-hidden="true"></i><b lang="ja">が</b><span>탁점·반탁점</span><small>25자</small></button>
+      <button type="button" class="tile" data-o="yoon"><i class="ck" aria-hidden="true"></i><b lang="ja">きゃ</b><span data-h="작은 ゃゅょ">작은 ゃゅょ</span><small>33자</small></button>
+     </div>
+    </div>
+    <div>
+     <div class="lab">문제 수</div>
+     <div class="seg" id="nSeg">
+      <span class="nBtns" id="nBtns"></span>
+      <input id="nIn" type="number" min="1" max="200" inputmode="numeric" aria-label="문제 수 직접 입력" placeholder="직접">
+     </div>
+    </div>
+    <div>
+     <div class="lab">답하는 방법</div>
+     <div class="sw" id="mSw" role="group" aria-label="답하는 방법">
+      <button type="button" data-v="pick">보기에서 고르기</button><button type="button" data-v="type">직접 쓰기</button>
      </div>
     </div>
     <button class="go" id="start" type="button">시작하기</button>
@@ -116,6 +74,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ok);outline-off
    <div class="side" id="vQuiz" hidden>
     <h2>이 글자는 뭐라고 읽을까요?</h2>
     <div class="opts" id="opts"></div>
+    <form class="typeAns" id="typeForm" hidden autocomplete="off">
+     <input id="typeIn" type="text" aria-label="읽는 법" placeholder="한글로 적기" autocomplete="off" spellcheck="false">
+     <button class="go" type="submit">확인</button>
+    </form>
     <div class="msg" id="msg">숫자 키 1~4로도 고를 수 있어요.</div>
     <div class="row2"><button class="go alt" id="quit" type="button">그만하기</button><button class="go" id="next" type="button" hidden>다음</button></div>
    </div>
@@ -129,154 +91,21 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ok);outline-off
  </div>
 </section>
 
-<section class="below">
+<section class="below" id="pRecords" role="tabpanel" aria-labelledby="tRecords" hidden>
  <div class="wrap">
   <h2>이번 주 기록</h2>
   <p id="syncMsg">기록은 이 브라우저에 저장돼요.</p>
   <div class="week" id="week"></div>
-  <h2 style="margin-top:26px">자주 틀린 글자</h2>
+  <h2 style="margin-top:30px">자주 틀린 글자</h2>
   <div class="chips" id="misses"></div>
-  <h2 style="margin-top:26px">기록 옮기기</h2>
+  <h2 style="margin-top:30px">기록 옮기기</h2>
   <p>다른 브라우저로 옮길 때: 여기서 '기록 복사'를 누르고, 새 브라우저에서 이 칸에 붙여 넣은 뒤 '불러오기'를 누르세요. 두 기록이 합쳐져요.</p>
   <div class="move"><textarea id="moveTxt" rows="3" aria-label="기록 코드" placeholder="기록 코드를 여기에 붙여 넣으세요"></textarea>
   <div class="row2" style="max-width:420px"><button class="go alt" id="exp" type="button">기록 복사</button><button class="go alt" id="imp" type="button">불러오기</button></div>
   <div class="msg" id="moveMsg"></div></div>
  </div>
 </section>
-
-<script>
-{
-const P=s=>s.split(' ').map(x=>{const [k,r]=x.split(':');return {k,r}});
-const BASE=P('あ:아 い:이 う:우 え:에 お:오 か:카 き:키 く:쿠 け:케 こ:코 さ:사 し:시 す:스 せ:세 そ:소 た:타 ち:치 つ:츠 て:테 と:토 な:나 に:니 ぬ:누 ね:네 の:노 は:하 ひ:히 ふ:후 へ:헤 ほ:호 ま:마 み:미 む:무 め:메 も:모 や:야 ゆ:유 よ:요 ら:라 り:리 る:루 れ:레 ろ:로 わ:와 を:오 ん:응');
-const DAK=P('が:가 ぎ:기 ぐ:구 げ:게 ご:고 ざ:자 じ:지 ず:즈 ぜ:제 ぞ:조 だ:다 ぢ:지 づ:즈 で:데 ど:도 ば:바 び:비 ぶ:부 べ:베 ぼ:보 ぱ:파 ぴ:피 ぷ:푸 ぺ:페 ぽ:포');
-const YOON=P('きゃ:캬 きゅ:큐 きょ:쿄 しゃ:샤 しゅ:슈 しょ:쇼 ちゃ:차 ちゅ:추 ちょ:초 にゃ:냐 にゅ:뉴 にょ:뇨 ひゃ:햐 ひゅ:휴 ひょ:효 みゃ:먀 みゅ:뮤 みょ:묘 りゃ:랴 りゅ:류 りょ:료 ぎゃ:갸 ぎゅ:규 ぎょ:교 じゃ:쟈 じゅ:쥬 じょ:죠 びゃ:뱌 びゅ:뷰 びょ:뵤 ぴゃ:퍄 ぴゅ:퓨 ぴょ:표');
-const LOOK={'ぬ':'めね','め':'ぬあ','ね':'れわぬ','れ':'ねわ','わ':'ねれ','る':'ろ','ろ':'る','さ':'ちき','ち':'さら','き':'さ','は':'ほけ','ほ':'はま','い':'りこ','り':'い','あ':'おめ','お':'あ','し':'つ','つ':'しう','う':'つら','ら':'うち','ま':'もほ','も':'ま','こ':'い','け':'は','な':'た','た':'な','の':'め','ぱ':'ば','ば':'ぱ','ぴ':'び','び':'ぴ','ぷ':'ぶ','ぶ':'ぷ','ぺ':'べ','べ':'ぺ','ぽ':'ぼ','ぼ':'ぽ'};
-const ALL=[...BASE,...DAK,...YOON];
-const RD={};ALL.forEach(x=>{if(!RD[x.k])RD[x.k]=x.r});
-const toK=s=>[...s].map(c=>{const n=c.charCodeAt(0);return n>=0x3041&&n<=0x3096?String.fromCharCode(n+0x60):c}).join('');
-const $=id=>document.getElementById(id);
-const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const today=()=>new Date().toLocaleDateString('sv');
-const KEY='kana-daily-v1';
-let store={days:{},miss:{}};
-try{const t=JSON.parse(localStorage.getItem(KEY)||'null');if(t&&t.days)store=t}catch(e){}
-let cloud=null,wTimer=0,writing=Promise.resolve();
-const pushCloud=()=>{if(!cloud)return;clearTimeout(wTimer);wTimer=setTimeout(()=>{const body=JSON.parse(JSON.stringify(store));writing=writing.then(()=>cloud.set(body)).catch(()=>{})},1500)};
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}pushCloud()};
-const merge=(a,b)=>{const o={days:{},miss:{}};for(const s of [a,b]){for(const [k,v] of Object.entries(s.days||{}))if(typeof v==='number')o.days[k]=Math.max(o.days[k]||0,v);for(const [k,v] of Object.entries(s.miss||{}))if(typeof v==='number'&&k.length<=3)o.miss[k]=Math.max(o.miss[k]||0,v)}return o};
-let cfg={n:10,base:true,dak:false,yoon:false,kata:false};
-try{const c=JSON.parse(localStorage.getItem(KEY+'-cfg')||'null');if(c)cfg=Object.assign(cfg,c)}catch(e){}
-let qs=[],qi=0,score=0,wrong=[],locked=false,pool=[];
-const show=k=>{['vSetup','vQuiz','vDone'].forEach(v=>$(v).hidden=v!==k)};
-const disp=k=>cfg.kata?toK(k):k;
-const setKana=(k)=>{const el=$('kana');el.textContent=disp(k);el.classList.toggle('small',[...k].length>1)};
-
-function stats(){
- const t=today();$('sToday').textContent=store.days[t]||0;
- let d=new Date(),n=0;if(!store.days[t])d.setDate(d.getDate()-1);
- while(store.days[d.toLocaleDateString('sv')]){n++;d.setDate(d.getDate()-1)}
- $('sStreak').textContent=n+'일';
- const W='일월화수목금토',days=[];const s=new Date();s.setDate(s.getDate()-6);
- for(let i=0;i<7;i++){const k=s.toLocaleDateString('sv'),c=store.days[k]||0;days.push(`<div class="day${c?' on':''}">${W[s.getDay()]}<b>${c}</b></div>`);s.setDate(s.getDate()+1)}
- $('week').innerHTML=days.join('');
- const m=Object.entries(store.miss).sort((a,b)=>b[1]-a[1]).slice(0,10);
- $('misses').innerHTML=m.length?m.map(([k,c])=>`<span class="chip"><b>${k}</b>${RD[k]||''}<i>${c}번</i></span>`).join(''):'<span style="color:var(--muted)">아직 틀린 글자가 없어요.</span>';
-}
-function paintCfg(){
- document.querySelectorAll('#nSeg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.n===cfg.n)));
- $('nIn').value=[10,20,30,46].includes(cfg.n)?'':cfg.n;
- $('oBase').checked=cfg.base;$('oDak').checked=cfg.dak;$('oYoon').checked=cfg.yoon;$('oKata').checked=cfg.kata;
- try{localStorage.setItem(KEY+'-cfg',JSON.stringify(cfg))}catch(e){}
-}
-function idle(){
- show('vSetup');$('bar').style.width='0';$('stamp').classList.remove('on');
- const x=BASE[Math.floor(Math.random()*BASE.length)];setKana(x.k);$('cBot').textContent=x.r;$('cBot').style.color='#5b6070';
- $('cTL').textContent='오늘의 글자';$('cTR').textContent='';stats();
-}
-function build(list,n){
- pool=list;const out=[];
- while(out.length<n)out.push(...shuf(list));
- return out.slice(0,n);
-}
-let run=0;
-function start(list,n){
- if(!list.length)return;
- run++;qs=build(list,n||cfg.n);qi=0;score=0;wrong=[];show('vQuiz');ask();
-}
-function options(q){
- const set=new Set([q.r]);
- const look=(LOOK[q.k]||'').split('').map(c=>RD[c]).filter(Boolean);
- for(const r of shuf(look)){if(set.size>=3)break;set.add(r)}
- for(const x of shuf(pool.length>=4?pool:ALL)){if(set.size>=4)break;set.add(x.r)}
- for(const x of shuf(ALL)){if(set.size>=4)break;set.add(x.r)}
- return shuf([...set]);
-}
-function ask(){
- locked=false;const q=qs[qi];setKana(q.k);
- $('cBot').textContent='';$('stamp').classList.remove('on');
- $('cTL').textContent=`${qi+1} / ${qs.length}`;$('cTR').textContent=`맞힘 ${score}`;
- $('bar').style.width=(qi/qs.length*100)+'%';
- $('opts').innerHTML=options(q).map((r,i)=>`<button type="button" class="opt" data-r="${r}"><span>${i+1}</span>${r}</button>`).join('');
- $('msg').textContent='숫자 키 1~4로도 고를 수 있어요.';$('next').hidden=true;
-}
-function pick(btn){
- if(locked||!btn)return;locked=true;
- const q=qs[qi],ok=btn.dataset.r===q.r,t=today();
- store.days[t]=(store.days[t]||0)+1;
- document.querySelectorAll('.opt').forEach(b=>{if(b.dataset.r===q.r)b.classList.add('ok')});
- $('cBot').textContent=q.r;
- if(ok){score++;$('cBot').style.color='var(--ok)';$('msg').textContent='정답!';const r=run,i=qi;setTimeout(()=>{if(r===run&&i===qi&&!$('vQuiz').hidden)nextQ()},650)}
- else{btn.classList.add('bad');wrong.push(q);const mk=disp(q.k);store.miss[mk]=(store.miss[mk]||0)+1;
-  $('cBot').style.color='var(--bad)';$('stamp').classList.add('on');
-  $('msg').textContent=`${disp(q.k)}는 '${q.r}'예요. 다음으로 넘어가려면 Enter.`;$('next').hidden=false;$('next').focus()}
- $('cTR').textContent=`맞힘 ${score}`;save();stats();
-}
-function nextQ(){
- qi++;if(qi<qs.length){ask();return}
- $('bar').style.width='100%';$('stamp').classList.remove('on');show('vDone');
- const k=document.getElementById('kana');k.textContent=`${score}/${qs.length}`;k.classList.add('small');
- $('cTL').textContent='결과';$('cTR').textContent='';
- const pct=Math.round(score/qs.length*100);
- $('cBot').style.color=pct>=80?'var(--ok)':'var(--bad)';$('cBot').textContent=pct===100?'다 맞혔어요!':pct+'%';
- $('dTitle').textContent=pct===100?'완벽해요! 내일도 만나요.':pct>=80?'거의 다 왔어요.':'틀린 글자를 한 번 더 봐요.';
- const uniq=[...new Map(wrong.map(w=>[w.k,w])).values()];
- $('dWrongLab').hidden=!uniq.length;
- $('dWrong').innerHTML=uniq.map(w=>`<span class="chip"><b>${disp(w.k)}</b>${w.r}</span>`).join('');
- $('retry').hidden=!uniq.length;
-}
-document.querySelectorAll('#nSeg button').forEach(b=>b.addEventListener('click',()=>{cfg.n=+b.dataset.n;paintCfg()}));
-$('nIn').addEventListener('input',e=>{const v=Math.max(1,Math.min(200,parseInt(e.target.value,10)||0));if(v){cfg.n=v;document.querySelectorAll('#nSeg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.n===v)));try{localStorage.setItem(KEY+'-cfg',JSON.stringify(cfg))}catch(x){}}});
-[['oBase','base'],['oDak','dak'],['oYoon','yoon'],['oKata','kata']].forEach(([id,k])=>$(id).addEventListener('change',e=>{cfg[k]=e.target.checked;if(!cfg.base&&!cfg.dak&&!cfg.yoon){cfg.base=true}paintCfg()}));
-$('start').addEventListener('click',()=>start([...(cfg.base?BASE:[]),...(cfg.dak?DAK:[]),...(cfg.yoon?YOON:[])]));
-$('opts').addEventListener('click',e=>pick(e.target.closest('.opt')));
-$('next').addEventListener('click',nextQ);
-$('quit').addEventListener('click',()=>{run++;idle()});
-$('again').addEventListener('click',idle);
-$('retry').addEventListener('click',()=>{const u=[...new Map(wrong.map(w=>[w.k,w])).values()];start(u,u.length)});
-document.addEventListener('keydown',e=>{
- if($('vQuiz').hidden)return;
- if(!locked&&/^[1-4]$/.test(e.key)){pick(document.querySelectorAll('.opt')[+e.key-1])}
- else if(e.key==='Enter'&&!$('next').hidden){e.preventDefault();nextQ()}
-});
-$('exp').addEventListener('click',async()=>{const code=btoa(unescape(encodeURIComponent(JSON.stringify(store))));$('moveTxt').value=code;try{await navigator.clipboard.writeText(code);$('moveMsg').textContent='복사했어요. 새 브라우저에서 붙여 넣으세요.'}catch(e){$('moveTxt').select();$('moveMsg').textContent='칸에 나온 코드를 직접 복사하세요 (Ctrl+C).'}});
-$('imp').addEventListener('click',()=>{try{const d=JSON.parse(decodeURIComponent(escape(atob($('moveTxt').value.trim()))));if(!d||typeof d!=='object')throw 0;store=merge(store,d);save();stats();$('moveMsg').textContent='불러왔어요. 기록이 합쳐졌어요.'}catch(e){$('moveMsg').textContent='코드가 올바르지 않아요. 다시 복사해 주세요.'}});
-paintCfg();idle();
-(async()=>{
- const msg=$('syncMsg');if(!window.claude){msg.textContent='기록은 이 브라우저에 저장돼요. 다른 브라우저로 옮기려면 아래 기록 옮기기를 쓰세요.';return}const local='기록은 이 브라우저에만 저장돼요. claude.ai에 로그인한 상태로 이 페이지를 열면 다른 브라우저와 기기에서도 이어서 볼 수 있어요.';
- const t=setTimeout(()=>{if(!cloud)msg.textContent=local},10000);
- try{
-  const C=window.claude;if(!C||!C.use)throw 0;$('syncMsg').textContent='기록을 불러오는 중이에요…';
-  const [db,user]=await Promise.all([C.use('db'),C.use('user')]);
-  const id=user?await user.id():null;if(!db||!id)throw 0;
-  const ref=db.doc('data/users/'+id+'/kana');
-  const snap=await ref.get();
-  if(snap.exists){const d=snap.data()||{};store=merge(store,d);try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}stats()}
-  cloud=ref;clearTimeout(t);
-  msg.textContent='기록은 내 claude.ai 계정에 저장돼요. 로그인만 돼 있으면 다른 브라우저나 기기에서도 이어서 볼 수 있어요.';
-  if(!snap.exists||JSON.stringify(merge(snap.data()||{},{}))!==JSON.stringify(store))pushCloud();
- }catch(e){clearTimeout(t);msg.textContent=local}
-})();
-}
-</script>
+<script src="script.js"></script>
+<script type="module" src="sync.js"></script>
 </body>
 </html>
