@@ -436,7 +436,9 @@ function wsGrid(){
 function wsSelect(ch,dir){
  if(!STROKES[ch])return;ws.ch=ch;wsSave();wsRender();wsEnds();wPad.clear();wsView.play();
  if(dir)slideIn($('wsSvg'),dir);
- const b=$('kGrid').querySelector(`[data-ch="${ch}"]`);if(b)b.scrollIntoView({block:'nearest'});
+ // 고른 글자가 글자 목록 안에서 보이게 목록만 스크롤해요. 페이지 전체는 움직이지 않아요(폰에서 위로 튀지 않게).
+ const g=$('kGrid'),b=g.querySelector(`[data-ch="${ch}"]`);
+ if(b&&g.scrollHeight>g.clientHeight){const top=b.offsetTop,bot=top+b.offsetHeight;if(top<g.scrollTop)g.scrollTop=top-4;else if(bot>g.scrollTop+g.clientHeight)g.scrollTop=bot-g.clientHeight+4}
 }
 const wsMove=d=>{const L=wsList(),i=L.indexOf(ws.ch),j=i+d;if(j<0||j>=L.length)return;wsSelect(L[j],d)};
 const wsEnds=()=>{const L=wsList(),i=L.indexOf(ws.ch);$('wsPrevK').disabled=i<=0;$('wsNextK').disabled=i>=L.length-1};
