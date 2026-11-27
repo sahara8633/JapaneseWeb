@@ -20,7 +20,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 
 /* indigo band */
 .top{background:var(--field);color:var(--ink);padding:clamp(20px,3vw,36px) max(5vw,16px) clamp(28px,4vw,48px);border-radius:0 0 clamp(24px,4vw,44px) clamp(24px,4vw,44px);transition:background-color .35s}
-.top:has(#pPractice[hidden]){padding-bottom:clamp(14px,2vw,22px)}
+body[data-view=records] .top{padding-bottom:clamp(14px,2vw,22px)}
 .wrap{max-width:1100px;margin:0 auto}
 .head{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between;margin-bottom:18px}
 h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
@@ -53,6 +53,11 @@ h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02e
 .card::after{content:"";position:absolute;inset:14px;border:1.5px dashed var(--line);border-radius:20px;pointer-events:none}
 .kana{font-family:var(--kanaFont);font-weight:500;font-size:clamp(120px,18vw,190px);line-height:1;position:relative;z-index:1}
 .kana.small{font-size:clamp(84px,12vw,130px)}
+.kana.w3{font-size:clamp(56px,8vw,92px);line-height:1.15}
+.kana.w5{font-size:clamp(40px,5.5vw,64px);line-height:1.2}
+.kana.w8{font-size:clamp(28px,3.6vw,40px);line-height:1.3}
+.kana.ko{font-family:"Noto Sans KR",system-ui,sans-serif;font-weight:800}
+.kana{max-width:84%;text-align:center;overflow-wrap:anywhere}
 .cardTop{position:absolute;top:26px;left:32px;right:32px;display:flex;justify-content:space-between;font-size:14px;color:var(--muted);z-index:1}
 .cardBot{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:18px;font-weight:600;min-height:28px;z-index:1}
 .stamp{position:absolute;right:32px;bottom:26px;width:66px;height:66px;border:3px solid var(--bad);color:var(--bad);border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;transform:rotate(-12deg) scale(1.4);opacity:0;z-index:2;transition:opacity .2s,transform .3s var(--spring)}
@@ -105,6 +110,100 @@ h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02e
 .opt:active{transform:scale(.97)}
 .opt.ok{background:var(--okSoft);border-color:var(--ok);color:var(--ok)}
 .opt.bad{background:var(--badSoft);border-color:var(--bad);color:var(--bad);animation:shake .32s}
+.opts.txt .opt{font-size:17px;font-weight:700;min-height:76px;padding:22px 12px 10px;line-height:1.3}
+.opts.jp .opt{font-family:var(--kanaFont);font-size:22px;font-weight:700;padding:16px 10px 8px}
+.note{margin:8px 0 0 4px;font-size:13px;color:var(--muted)}
+
+/* 글자 쓰기 */
+.draw{display:grid;gap:12px}
+.pad{position:relative;aspect-ratio:1;max-height:300px;width:100%;margin:0 auto;border-radius:24px;background:var(--panel);overflow:hidden;color:var(--ink)}
+.pad::before,.pad::after{content:"";position:absolute;pointer-events:none;border:0 dashed var(--line)}
+.pad::before{left:50%;top:14px;bottom:14px;border-left-width:1.5px}
+.pad::after{top:50%;left:14px;right:14px;border-top-width:1.5px}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:1}
+.pad .guide{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--kanaFont);font-size:min(180px,40vw);line-height:1;color:var(--ok);opacity:0;transition:opacity .35s}
+.pad.shown .guide{opacity:.22}
+.padClear{position:absolute;z-index:2;right:10px;top:10px;font:inherit;font-size:13px;font-weight:600;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--surface);color:var(--muted);cursor:pointer;box-shadow:0 1px 3px var(--shadow)}
+.padScore{position:absolute;z-index:2;left:12px;top:10px;min-height:34px;padding:0 14px;border-radius:999px;display:inline-flex;align-items:center;font-size:14px;font-weight:800;background:var(--surface);color:var(--ink);box-shadow:0 1px 3px var(--shadow);animation:pop .35s var(--spring)}
+.padScore.ok{background:var(--okSoft);color:var(--ok)}
+.padScore.bad{background:var(--badSoft);color:var(--bad)}
+
+/* 쓰기 연습: stroke order */
+.strokeCard{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 22px;gap:14px}
+.strokes{width:min(100%,320px);aspect-ratio:1;position:relative;z-index:1}
+.strokes path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:4.2}
+.strokes .bg{stroke:var(--line)}
+.strokes .ink{stroke:var(--cardInk)}
+.strokes .now{stroke:var(--bad)}
+.strokes text{font:700 6.5px "Noto Sans KR",sans-serif;fill:var(--bad);opacity:0;transition:opacity .2s}
+.strokes text.on{opacity:1}
+.strokes text.done{fill:var(--muted);opacity:1}
+.strokeCtl{display:flex;gap:10px;position:relative;z-index:1}
+.ctl{font:inherit;font-size:15px;font-weight:700;min-height:44px;min-width:44px;padding:0 16px;border:0;border-radius:999px;background:var(--panel);color:var(--cardInk);cursor:pointer;transition:transform .2s var(--spring)}
+.ctl:active{transform:scale(.94)}
+.ctl.play{background:var(--sel);color:var(--selInk);padding:0 22px}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px;padding:2px}
+.kgrid button{font-family:var(--kanaFont);font-size:20px;min-height:40px;border:0;border-radius:12px;background:var(--panel);color:var(--ink);cursor:pointer;transition:background .2s,color .2s}
+.kgrid button[aria-pressed=true]{background:var(--sel);color:var(--selInk)}
+.kgrid .gap{grid-column:1/-1;height:2px}
+.guideSvg{position:absolute;inset:8%;width:84%;height:84%;pointer-events:none;transition:opacity .25s}
+.guideSvg path{fill:none;stroke:var(--line);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.guideSvg text{font:700 6px "Noto Sans KR",sans-serif;fill:var(--muted)}
+.pad.noGuide .guideSvg{opacity:0}
+.padClear.left{right:auto;left:10px}
+
+/* writing layouts: picker on top, stroke order and a big pad side by side */
+.wl{display:grid;gap:clamp(16px,2.4vw,24px)}
+.wlTop{gap:16px}
+.wlPair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(16px,3vw,32px)}
+.padCard{display:block;padding:56px 22px 22px;min-height:0}
+.pad.big{max-height:none;aspect-ratio:1;width:100%}
+.strokeCard .strokes{width:100%;max-width:420px}
+.print{position:absolute;top:50px;right:26px;z-index:1;display:grid;justify-items:center;line-height:1}
+.print b{font-family:var(--kanaFont);font-weight:500;font-size:44px;color:var(--cardInk)}
+.print small{font-size:11px;color:var(--muted);margin-top:4px}
+.note.center{text-align:center;margin:0}
+.wlNav{max-width:560px;width:100%;margin:0 auto}
+.wlNav.three{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;max-width:640px}
+.studyHead{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px}
+.sWord{font-family:var(--kanaFont);font-size:clamp(34px,4.6vw,52px);font-weight:500;line-height:1.3}
+.sMean{font-size:18px;font-weight:700;color:var(--muted)}
+.studyMeta{display:grid;justify-items:end;gap:8px;font-size:14px;color:var(--muted)}
+.chars{display:flex;flex-wrap:wrap;gap:6px}
+.chars button{font-family:var(--kanaFont);font-size:24px;min-width:46px;min-height:46px;border:0;border-radius:14px;background:var(--panel);color:var(--ink);cursor:pointer}
+.chars button[aria-pressed=true]{background:var(--sel);color:var(--selInk)}
+ruby rt{font-size:.34em;font-weight:500;color:var(--muted);letter-spacing:.04em}
+.kana ruby rt{font-size:.3em}
+@media(max-width:760px){.wlPair{grid-template-columns:minmax(0,1fr)}.kgrid{max-height:220px;overflow:auto}.studyMeta{justify-items:start}}
+
+/* 단어 카드 */
+.flip{position:relative;min-height:340px;perspective:1400px;cursor:pointer;border-radius:30px;outline:none}
+.flip:focus-visible{outline:3px solid var(--bad);outline-offset:4px}
+.face{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:10px;padding:56px 28px 40px;border-radius:30px;background:var(--card);color:var(--cardInk);box-shadow:0 1px 2px var(--shadow),0 18px 40px var(--shadow);backface-visibility:hidden;transition:transform .55s var(--spring);text-align:center}
+.face::after{content:"";position:absolute;inset:14px;border:1.5px dashed var(--line);border-radius:20px;pointer-events:none}
+.face.back{transform:rotateY(180deg)}
+.flip.instant .face{transition:none}
+.flip.on .front{transform:rotateY(-180deg)}
+.flip.on .back{transform:rotateY(0)}
+.fcMain{font-family:var(--kanaFont);font-weight:500;font-size:clamp(44px,7vw,84px);line-height:1.2;overflow-wrap:anywhere}
+.fcMain.ko{font-family:"Noto Sans KR",sans-serif;font-weight:800;font-size:clamp(32px,4.5vw,52px)}
+.fcHint{position:absolute;bottom:28px;font-size:13px;color:var(--muted)}
+.fcWord{font-family:var(--kanaFont);font-size:clamp(36px,5vw,60px);font-weight:500;line-height:1.2}
+.fcRead{font-family:var(--kanaFont);font-size:20px;color:var(--muted)}
+.fcMean{font-size:clamp(22px,2.6vw,30px);font-weight:800}
+.prog{height:10px;border-radius:999px;background:var(--panel);overflow:hidden}
+.prog i{display:block;height:100%;width:0;border-radius:999px;background:var(--ok);transition:width .4s var(--spring)}
+.go.okBtn{background:var(--ok);box-shadow:none}
+.credit{padding:18px max(5vw,16px) 28px;font-size:12px;color:var(--muted);text-align:center}
+.credit a{color:inherit}
+
+/* logout dialog */
+.dlg{border:0;padding:0;border-radius:28px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.dlg form{padding:26px 24px 22px}
+.dlg h2{margin:0 0 8px;font-size:20px}
+.dlg p{margin:0 0 20px;color:var(--muted);font-size:15px}
+.dlg::backdrop{background:rgba(10,10,12,.45);backdrop-filter:blur(2px)}
+.dlg[open]{animation:pop .3s var(--spring)}
 .typeAns{display:flex;gap:10px}
 .typeAns input{flex:1;min-height:64px;font:inherit;font-size:26px;font-weight:800;text-align:center;padding:0 18px;border-radius:999px;border:2px solid transparent;background:var(--panel);color:var(--ink);transition:border-color .2s,background .2s}
 .typeAns input:focus{border-color:var(--sel);outline:none}
@@ -134,5 +233,8 @@ h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02e
 @keyframes pop{from{transform:scale(.5);opacity:0}}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.card{min-height:280px}}
-@media(max-width:420px){.tile{padding:12px 10px 10px}.tile b{font-size:24px}.tile b.long{font-size:17px}.tile span{font-size:13px}.sw button{font-size:14px;padding:0 6px}}
+@media(max-width:420px){.tile{padding:12px 10px 10px}.tile b{font-size:24px}.tile b.long{font-size:17px}.tile span{font-size:13px}.sw button{font-size:14px;padding:0 6px;white-space:normal;line-height:1.2}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+.fcNav{display:flex;justify-content:space-between;gap:10px}
+.ctl:disabled,.go:disabled{opacity:.4;cursor:default}
+.go.no{animation:shake .32s}

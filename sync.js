@@ -37,7 +37,16 @@ async function start() {
       }
     }
   });
-  $('logoutBtn').addEventListener('click', () => A.signOut(auth));
+  // 로그아웃은 한 번 더 물어봐요.
+  const dlg = $('logoutDlg');
+  $('logoutBtn').addEventListener('click', () => {
+    if (dlg && dlg.showModal) dlg.showModal();
+    else if (confirm('정말 로그아웃할까요?')) A.signOut(auth);
+  });
+  if (dlg) {
+    dlg.addEventListener('close', () => { if (dlg.returnValue === 'ok') A.signOut(auth); dlg.returnValue = ''; });
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close('cancel'); });
+  }
 
   A.onAuthStateChanged(auth, async user => {
     $('loginBtn').hidden = !!user;
@@ -60,7 +69,7 @@ async function start() {
     const sync = async () => {
       const snap = await F.getDoc(ref);
       const merged = S.mergeIn(snap.exists() ? snap.data() : {});
-      await F.setDoc(ref, { days: merged.days, miss: merged.miss, updated: Date.now() });
+      await F.setDoc(ref, { days: merged.days, miss: merged.miss, wmiss: merged.wmiss, known: merged.known, updated: Date.now() });
     };
     try {
       await sync();
