@@ -20,7 +20,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 
 /* indigo band */
 .top{background:var(--field);color:var(--ink);padding:clamp(20px,3vw,36px) max(5vw,16px) clamp(28px,4vw,48px);border-radius:0 0 clamp(24px,4vw,44px) clamp(24px,4vw,44px);transition:background-color .35s}
-body[data-view=records] .top{padding-bottom:clamp(14px,2vw,22px)}
+body[data-view=records] .top,body[data-view=admin] .top{padding-bottom:clamp(14px,2vw,22px)}
 .wrap{max-width:1100px;margin:0 auto}
 .head{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between;margin-bottom:18px}
 h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02em;font-weight:800}
@@ -238,3 +238,13 @@ ruby rt{font-size:.34em;font-weight:500;color:var(--muted);letter-spacing:.04em}
 .fcNav{display:flex;justify-content:space-between;gap:10px}
 .ctl:disabled,.go:disabled{opacity:.4;cursor:default}
 .go.no{animation:shake .32s}
+.resetBox{display:grid;gap:14px;max-width:640px}
+.adminFind{display:flex;gap:10px;max-width:560px;margin-bottom:8px}
+.adminFind input{flex:1;min-height:52px;font:inherit;font-size:16px;padding:0 20px;border-radius:999px;border:2px solid transparent;background:var(--panel);color:var(--ink)}
+.adminFind input:focus{border-color:var(--sel);outline:none}
+.adminHead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin:14px 0 16px}
+.adminHead b{font-size:22px}
+.adminHead span{color:var(--muted);font-size:14px}
+.adminStats{display:flex;flex-wrap:wrap;gap:12px}
+.adminStats div{min-width:120px;padding:14px 18px;border-radius:20px;background:var(--panel);font-size:13px;color:var(--muted)}
+.adminStats b{display:block;font-size:24px;color:var(--ink)}

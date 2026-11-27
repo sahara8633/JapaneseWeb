@@ -53,6 +53,7 @@ async function start() {
     $('me').hidden = !user;
     if (!user) {
       S.detach();
+      if (S.admin) S.admin(null);
       S.status('로그인하면 다른 브라우저나 기기에서도 기록이 이어져요. 지금은 이 브라우저에만 저장돼요.');
       return;
     }
@@ -69,15 +70,26 @@ async function start() {
     const sync = async () => {
       const snap = await F.getDoc(ref);
       const merged = S.mergeIn(snap.exists() ? snap.data() : {});
-      await F.setDoc(ref, { days: merged.days, miss: merged.miss, wmiss: merged.wmiss, known: merged.known, updated: Date.now() });
+      // 이메일과 이름은 관리자가 이메일로 기록을 찾을 때 써요
+      await F.setDoc(ref, { days: merged.days, miss: merged.miss, wmiss: merged.wmiss, known: merged.known, resets: merged.resets,
+        email: (user.email || '').toLowerCase(), name: user.displayName || '', updated: Date.now() });
     };
     try {
       await sync();
       S.attach({ set: () => sync() });
-      S.status('기록이 내 Google 계정에 저장돼요. 다른 브라우저나 기기에서도 로그인하면 이어서 볼 수 있어요.');
+      S.status('기록이 내 Google 계정에 저장돼요. 다른 브라우저나 기기에서도 로그인하면 이어서 볼 수 있어요. 학습 기록(이메일 포함)은 이 사이트 관리자도 볼 수 있어요.');
     } catch (e) {
       console.error(e);
       S.status('계정에 기록을 저장하지 못했어요. 지금은 이 브라우저에만 저장돼요.');
     }
+    // 관리자: Firestore admins/{내 uid} 문서가 있으면 관리 탭을 켜요. 실제로 남의 기록을 읽을 수 있는지는 보안 규칙이 정해요.
+    try {
+      const me = await F.getDoc(F.doc(db, 'admins', user.uid));
+      if (me.exists() && S.admin) S.admin(async email => {
+        const q = F.query(F.collection(db, 'users'), F.where('email', '==', email.trim().toLowerCase()), F.limit(1));
+        const res = await F.getDocs(q);
+        return res.empty ? null : res.docs[0].data();
+      });
+    } catch (e) { /* 관리자가 아니거나 규칙이 아직 없으면 조용히 넘어가요 */ }
   });
 }

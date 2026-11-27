@@ -24,12 +24,32 @@ const today=()=>new Date().toLocaleDateString('sv');
 
 /* records */
 const KEY='kana-daily-v1';
-let store={days:{},miss:{},wmiss:{},known:{}};
-try{const t=JSON.parse(localStorage.getItem(KEY)||'null');if(t&&t.days)store=Object.assign({miss:{},wmiss:{},known:{}},t)}catch(e){}
+let store={days:{},miss:{},wmiss:{},known:{},resets:{}};
+try{const t=JSON.parse(localStorage.getItem(KEY)||'null');if(t&&t.days)store=Object.assign({miss:{},wmiss:{},known:{},resets:{}},t)}catch(e){}
 let cloud=null,wTimer=0,writing=Promise.resolve();
 const pushCloud=()=>{if(!cloud)return;clearTimeout(wTimer);wTimer=setTimeout(()=>{const body=JSON.parse(JSON.stringify(store));writing=writing.then(()=>cloud.set(body)).catch(()=>{})},1500)};
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}pushCloud()};
-const merge=(a,b)=>{const o={days:{},miss:{},wmiss:{},known:{}};const mx=(dst,src,ok)=>{for(const [k,v] of Object.entries(src||{}))if(typeof v==='number'&&ok(k))dst[k]=Math.max(dst[k]||0,v)};for(const s of [a,b]){mx(o.days,s.days,()=>true);mx(o.miss,s.miss,k=>k.length<=3);mx(o.wmiss,s.wmiss,k=>k.length<=20);for(const [k,v] of Object.entries(s.known||{}))if(typeof v==='number'&&k.length<=20&&Math.abs(v)>Math.abs(o.known[k]||0))o.known[k]=v}return o};
+/* 두 기록 합치기. resets에는 종류별로 마지막으로 지운 시각이 있어요:
+   한쪽이 더 나중에 지웠으면 그 종류는 그쪽 기록만 남겨서, 지운 기록이 다른 기기나 계정에서 되살아나지 않아요. */
+const CATS={days:()=>true,miss:k=>k.length<=3,wmiss:k=>k.length<=20,known:k=>k.length<=20};
+const merge=(a,b)=>{
+ const o={days:{},miss:{},wmiss:{},known:{},resets:{}};
+ for(const [cat,ok] of Object.entries(CATS)){
+  const ra=(a.resets||{})[cat]||0,rb=(b.resets||{})[cat]||0;o.resets[cat]=Math.max(ra,rb);
+  for(const s of [a,b]){
+   // 이쪽이 지우기 전 기록이면, 지운 뒤에 생긴 것(날짜가 지운 날 이후인 기록, 지운 뒤에 익힌 단어)만 남겨요
+   const stale=((s===a)?ra:rb)<o.resets[cat],cut=o.resets[cat],cutDay=new Date(cut).toLocaleDateString('sv');
+   if(stale&&(cat==='miss'||cat==='wmiss'))continue;
+   for(const [k,v] of Object.entries(s[cat]||{})){
+    if(typeof v!=='number'||!ok(k))continue;
+    if(stale&&(cat==='days'?k<=cutDay:Math.abs(v)<=cut))continue;
+    if(cat==='known'){if(Math.abs(v)>Math.abs(o.known[k]||0))o.known[k]=v}
+    else o[cat][k]=Math.max(o[cat][k]||0,v);
+   }
+  }
+ }
+ return o;
+};
 
 /* settings */
 const SCRIPTS=['h','k','mix'],MODES=['pick','type','draw'],WMODES=['mean','word'],PRESETS=[10,20,30];
@@ -73,7 +93,7 @@ const slide=(el,dir,swap)=>{
  out.onfinish=()=>{swap();el.animate([{transform:`translateX(${dir*40}px)`,opacity:0},{transform:'translateX(0)',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'})};
 };
 const slideIn=(el,dir)=>{if(still()||!el.animate)return;el.animate([{transform:`translateX(${dir*32}px)`,opacity:0},{transform:'translateX(0)',opacity:1}],{duration:320,easing:'cubic-bezier(.2,.8,.2,1)'})};
-const paintSw=(el,i)=>{el.style.setProperty('--n',el.children.length);el.style.setProperty('--i',i)};
+const paintSw=(el,i)=>{el.style.setProperty('--n',[...el.children].filter(c=>!c.hidden).length);el.style.setProperty('--i',i)};
 const chip=(b,t,extra='')=>`<span class="chip"><b lang="ja">${esc(b)}</b>${esc(t)}${extra}</span>`;
 
 function stats(){
@@ -585,11 +605,12 @@ $('sQuit').addEventListener('click',()=>{sView.stop();fcHome()});
 
 
 /* events: tabs */
-const TABS=['kana','write','word','cards','records'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords'};
+const TABS=['kana','write','word','cards','records','admin'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords',admin:'pAdmin'};
 let view='kana';
 const panelOf=name=>name==='cards'&&studyView==='study'?'pStudy':PANEL[name];
-function tabPanels(){for(const id of ['pPractice','pWrite','pCards','pStudy','pRecords'])$(id).hidden=id!==panelOf(view)}
+function tabPanels(){for(const id of ['pPractice','pWrite','pCards','pStudy','pRecords','pAdmin'])$(id).hidden=id!==panelOf(view)}
 const tab=(name,first)=>{
+ if(name==='admin'&&!adminFind)name='kana';
  const prev=view;view=name;document.body.dataset.view=name;
  tabPanels();
  $$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
@@ -640,6 +661,68 @@ document.addEventListener('keydown',e=>{
 $('exp').addEventListener('click',async()=>{const code=btoa(unescape(encodeURIComponent(JSON.stringify(store))));$('moveTxt').value=code;try{await navigator.clipboard.writeText(code);$('moveMsg').textContent='복사했어요. 새 브라우저에서 붙여 넣으세요.'}catch(e){$('moveTxt').select();$('moveMsg').textContent='칸에 나온 코드를 직접 복사하세요 (Ctrl+C).'}});
 $('imp').addEventListener('click',()=>{try{const d=JSON.parse(decodeURIComponent(escape(atob($('moveTxt').value.trim()))));if(!d||typeof d!=='object')throw 0;store=merge(store,d);save();stats();$('moveMsg').textContent='불러왔어요. 기록이 합쳐졌어요.'}catch(e){$('moveMsg').textContent='코드가 올바르지 않아요. 다시 복사해 주세요.'}});
 
+/* 기록 초기화: 고른 종류만 지우고, 지운 시각을 남겨서 계정·다른 기기와 합칠 때 되살아나지 않게 해요 */
+const RESET_NAME={days:'푼 문제 수·연속 일수',miss:'자주 틀린 글자',wmiss:'자주 틀린 단어',known:'익힌 단어'};
+const resetPicked=()=>[...$$('#resetSeg button')].filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.k);
+function resetPaint(){const n=resetPicked().length;$('resetBtn').disabled=!n;$('resetAll').textContent=n===4?'전체 해제':'전체 선택'}
+$('resetSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));$('resetMsg').textContent='';resetPaint()});
+$('resetAll').addEventListener('click',()=>{const all=resetPicked().length===4;$$('#resetSeg button').forEach(b=>b.setAttribute('aria-pressed',String(!all)));$('resetMsg').textContent='';resetPaint()});
+$('resetBtn').addEventListener('click',()=>{
+ const picked=resetPicked();if(!picked.length)return;
+ $('resetText').textContent=`${picked.map(k=>RESET_NAME[k]).join(', ')} 기록을 지워요. 지운 기록은 되돌릴 수 없어요.`+(cloud?' 로그인한 계정에 저장된 기록도 같이 지워져요.':'');
+ const d=$('resetDlg');if(d.showModal)d.showModal();else if(confirm($('resetText').textContent))doReset(picked);
+});
+$('resetDlg').addEventListener('close',()=>{const d=$('resetDlg');if(d.returnValue==='ok')doReset(resetPicked());d.returnValue=''});
+$('resetDlg').addEventListener('click',e=>{if(e.target===$('resetDlg'))$('resetDlg').close('cancel')});
+function doReset(picked){
+ const t=Date.now();store.resets=store.resets||{};
+ picked.forEach(k=>{store[k]={};store.resets[k]=t});
+ save();stats();fcPaint();
+ $$('#resetSeg button').forEach(b=>b.setAttribute('aria-pressed','false'));resetPaint();
+ $('resetMsg').textContent=`지웠어요: ${picked.map(k=>RESET_NAME[k]).join(', ')}`+(cloud?'. 계정 기록도 곧 같이 지워져요.':'.');
+}
+
+/* 관리: sync.js가 관리자 계정이라고 알려 주면 '관리' 탭이 보여요. 이메일로 다른 사용자의 기록을 읽기만 해요. */
+let adminFind=null;
+function setAdmin(find){
+ adminFind=find||null;$('tAdmin').hidden=!adminFind;
+ if(!adminFind&&view==='admin')tab('kana');
+ paintSw($('tabs'),TABS.indexOf(view));
+}
+function streakOf(days){
+ const t=today();let d=new Date(),n=0;if(!days[t])d.setDate(d.getDate()-1);
+ while(days[d.toLocaleDateString('sv')]){n++;d.setDate(d.getDate()-1)}
+ return n;
+}
+function weekHTML(days){
+ const W='일월화수목금토',out=[];const s=new Date();s.setDate(s.getDate()-6);
+ for(let i=0;i<7;i++){const k=s.toLocaleDateString('sv'),c=days[k]||0;out.push(`<div class="day${c?' on':''}">${W[s.getDay()]}<b>${c}</b></div>`);s.setDate(s.getDate()+1)}
+ return out.join('');
+}
+function adminRender(d){
+ const days=d.days||{},top=o=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1]).slice(0,20),none=t=>`<span style="color:var(--muted)">${t}</span>`;
+ $('aName').textContent=d.name||'(이름 없음)';$('aEmail').textContent=d.email||'';
+ $('aUpdated').textContent=d.updated?`마지막 저장 ${new Date(d.updated).toLocaleString('ko-KR')}`:'';
+ $('aStreak').textContent=streakOf(days)+'일';$('aToday').textContent=days[today()]||0;
+ $('aTotal').textContent=Object.values(days).reduce((a,v)=>a+(+v||0),0);$('aDays').textContent=Object.values(days).filter(v=>v>0).length+'일';
+ $('aWeek').innerHTML=weekHTML(days);
+ const m=top(d.miss);$('aMiss').innerHTML=m.length?m.map(([k,c])=>chip(k,RD[k]||RD[toH(k)]||'',`<i>${c}번</i>`)).join(''):none('틀린 글자가 없어요.');
+ const w=top(d.wmiss);$('aWmiss').innerHTML=w.length?w.map(([k,c])=>chip(k,WMAP[k]?WMAP[k].m:'',`<i>${c}번</i>`)).join(''):none('틀린 단어가 없어요.');
+ const known=Object.entries(d.known||{}).filter(([,v])=>v>0).map(([k])=>k);
+ $('aKnown').innerHTML=LV.map(l=>{const T=(WORDS[l]||[]).length,n=(WORDS[l]||[]).filter(x=>known.includes(x.w)).length;return `<span class="chip"><b>${l}</b>${n} / ${T}</span>`}).join('');
+ $('adminOut').hidden=false;
+}
+$('adminForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!adminFind)return;
+ const email=$('adminEmail').value.trim();
+ if(!/^[^@\s]+@[^@\s]+$/.test(email)){$('adminMsg').textContent='이메일을 정확히 입력해 주세요.';return}
+ $('adminMsg').textContent='찾는 중이에요…';$('adminOut').hidden=true;
+ try{const d=await adminFind(email);
+  if(!d){$('adminMsg').textContent='그 이메일로 저장된 기록이 없어요. (이 기능이 생긴 뒤에 로그인한 적이 있어야 찾을 수 있어요.)';return}
+  $('adminMsg').textContent='';adminRender(d);
+ }catch(err){console.error(err);$('adminMsg').textContent='기록을 읽지 못했어요. Firestore 보안 규칙에 관리자 읽기 권한이 들어갔는지 확인해 주세요.'}
+});
+
 /* theme: follows the system until the user picks one */
 const dark=matchMedia('(prefers-color-scheme: dark)');
 const theme=()=>document.documentElement.dataset.theme||(dark.matches?'dark':'light');
@@ -658,6 +741,7 @@ window.kanaSync={
  mergeIn:d=>{store=merge(store,d||{});try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}stats();fcPaint();return JSON.parse(JSON.stringify(store))},
  attach:c=>{cloud=c},
  detach:()=>{cloud=null;clearTimeout(wTimer)},
- status:t=>{$('syncMsg').textContent=t}
+ status:t=>{$('syncMsg').textContent=t},
+ admin:setAdmin
 };
 }

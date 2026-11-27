@@ -31,7 +31,7 @@
 
 **공통**
 - 틀린 것만 다시 풀기, 연속 일수
-- '기록' 탭: 이번 주 기록, 자주 틀린 글자·단어, 기록 옮기기
+- '기록' 탭: 이번 주 기록, 자주 틀린 글자·단어, 기록 옮기기, 기록 초기화(푼 문제 수·연속 일수 / 자주 틀린 글자 / 자주 틀린 단어 / 익힌 단어 중 골라서. 로그인했으면 계정 기록도 같이 지워지고 다른 기기에서도 되살아나지 않아요)
 - 테마: 라이트 / 다크 / 라이트다크(위쪽만 어둡게). 처음엔 기기 설정을 따라가요
 - 기록은 브라우저(localStorage)에 저장되고, Google로 로그인하면 계정에도 저장돼서 다른 브라우저나 기기에서 이어서 볼 수 있어요. 로그인 없이 '기록 옮기기'로 옮길 수도 있어요.
 
@@ -76,13 +76,36 @@
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
+       function isAdmin() {
+         return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+       }
        match /users/{uid} {
          allow read, write: if request.auth != null && request.auth.uid == uid;
+         allow read: if isAdmin();
+       }
+       match /admins/{uid} {
+         allow read: if request.auth != null && request.auth.uid == uid;
        }
      }
    }
    ```
 
+   각자 자기 기록만 읽고 쓸 수 있고, `admins` 목록에 있는 관리자는 모든 기록을 **읽기만** 할 수 있어요. `admins`는 사이트에서 바꿀 수 없고 Firebase 콘솔에서만 바꿀 수 있어요.
+
 6. 프로젝트 설정(톱니바퀴) → 일반 → 내 앱에서 **웹 앱(</>) 추가** → 나오는 `firebaseConfig`의 `apiKey`, `authDomain`, `projectId`, `appId`를 `firebase-config.js`에 붙여 넣기
 
 `apiKey` 같은 웹 설정값은 공개돼도 괜찮아요. 각자 자기 기록만 읽고 쓸 수 있게 막는 건 5번의 보안 규칙이에요.
+
+## 관리자 설정 (사용자 기록 보기)
+
+관리자 계정으로 로그인하면 **관리** 탭이 생기고, 사용자의 Google 이메일로 그 사람의 기록(연속 일수, 푼 문제 수, 이번 주 기록, 자주 틀린 글자·단어, 익힌 단어)을 볼 수 있어요. 기록은 읽기만 하고 바꾸지 않아요.
+
+1. 사이트에서 관리자로 쓸 Google 계정으로 한 번 로그인해요.
+2. Firebase 콘솔 → **Authentication** → **사용자** 탭에서 그 계정의 **사용자 UID**를 복사해요.
+3. **Firestore Database** → **데이터** → **컬렉션 시작** → 컬렉션 ID `admins` → 문서 ID에 2번의 UID를 붙여 넣고, 필드는 아무거나(예: `role` = `admin`) 넣고 저장해요.
+4. 위 5번의 보안 규칙(관리자 읽기 포함)이 게시돼 있는지 확인해요.
+5. 사이트를 새로고침하면 **관리** 탭이 보여요.
+
+- 로그인할 때 이메일과 이름이 기록과 함께 저장돼요. 이 기능이 생긴 **뒤에 한 번 이상 로그인한 사용자만** 이메일로 찾을 수 있어요.
+- 로그인 버튼과 기록 탭에 "관리자가 학습 기록을 볼 수 있어요" 안내가 나와요.
+- 로그인하지 않고 쓰는 사람의 기록은 그 사람 브라우저에만 있어서 볼 수 없어요.
