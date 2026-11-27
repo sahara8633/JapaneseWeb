@@ -81,7 +81,7 @@ const key=q=>q.t==='word'?q.w:q.d;
 const sample=k=>cfg.script==='k'?toK(k):cfg.script==='mix'?k+toK(k):k;
 
 let subject='kana',quizMode='pick',qs=[],qi=0,score=0,wrong=[],locked=false,idleItem=null,run=0;
-const show=k=>{['vSetup','vWSetup','vQuiz','vDone'].forEach(v=>$(v).hidden=v!==k)};
+const show=k=>{['vSetup','vWSetup','vQuiz','vDone'].forEach(v=>$(v).hidden=v!==k);$('pPractice').classList.toggle('running',k==='vQuiz'||k==='vDone')};
 const setupView=()=>subject==='kana'?'vSetup':'vWSetup';
 const setCard=(t,lang='ja',rt='')=>{const el=$('kana'),n=[...t].length;if(rt&&rt!==t)el.innerHTML=`<ruby>${esc(t)}<rt>${esc(rt)}</rt></ruby>`;else el.textContent=t;el.lang=lang;el.className='kana'+(lang==='ko'?' ko':'')+(n<=1?'':n<=2?' small':n<=4?' w3':n<=7?' w5':' w8')};
 const still=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -174,6 +174,10 @@ function build(list,n){
 function start(list,n,mode){
  if(!list.length)return;
  run++;quizMode=mode;qs=build(list,n);qi=0;score=0;wrong=[];show('vQuiz');ask();
+ // 글자 쓰기는 채점할 때 쓰는 정답 모양을 미리 만들어 둬요 (폰에서 첫 채점이 멈추지 않게)
+ // 폰에서는 퀴즈가 화면을 꽉 채우게 카드 위로 스크롤해요
+ if(matchMedia('(max-width:760px)').matches)requestAnimationFrame(()=>$('card').scrollIntoView({block:'start',behavior:still()?'auto':'smooth'}));
+ if(mode==='draw'&&window.KanaMatch){const sc=new Set(qs.map(q=>isKata(q.d)?'k':'h'));window.KanaMatch.warm([...sc].flatMap(x=>ALL.map(a=>x==='k'?toK(a.k):a.k)))}
 }
 
 /* wrong answers that are worth falling for: look-alike kana, then same row or same vowel sound */
@@ -234,7 +238,8 @@ function ask(){
  $('cBot').textContent='';$('stamp').classList.remove('on');
  $('cTL').textContent=`${qi+1} / ${qs.length}`;$('cTR').textContent=`맞힘 ${score}`;
  $('bar').style.width=(qi/qs.length*100)+'%';
- $('qTitle').textContent=quizMode==='draw'?`${scriptName(q)}로 써 보세요`:TITLE[quizMode];
+ // 글자 쓰기는 써야 할 소리를 제목에도 크게 보여 줘요 (폰에서 위아래로 오가지 않게)
+ if(quizMode==='draw')$('qTitle').innerHTML=`<span class="qBig">${esc(q.r)}</span>${scriptName(q)}로 써 보세요`;else $('qTitle').textContent=TITLE[quizMode];
  const choose=['pick','mean','word'].includes(quizMode);
  $('opts').hidden=!choose;$('typeForm').hidden=quizMode!=='type';$('draw').hidden=quizMode!=='draw';
  $('opts').classList.toggle('txt',quizMode==='mean');$('opts').classList.toggle('jp',quizMode==='word');
@@ -265,14 +270,22 @@ function strokeGuide(ch){
  const W=109*(1+.92*(cs.length-1));
  return `<svg viewBox="0 0 ${W} 109" aria-hidden="true">${cs.map((c,i)=>`<g transform="translate(${i*109*.92} 0)">${S[c].p.map(d=>`<path d="${d}"/>`).join('')}</g>`).join('')}</svg>`;
 }
+let grading=false;
 function reveal(){
- const q=qs[qi];if(locked||quizMode!=='draw')return;
+ const q=qs[qi];if(locked||grading||quizMode!=='draw')return;
+ // 화면에 '채점 중'을 먼저 그리고 계산해요. 계산 중에 한 번 더 눌러도 무시해요.
+ grading=true;$('reveal').textContent='채점 중…';$('reveal').disabled=true;
+ setTimeout(()=>{try{grade(q)}finally{grading=false;$('reveal').textContent='채점하기';$('reveal').disabled=false}},30);
+}
+function grade(q){
  const alts=altsOf(q),single=[...q.d].length===1;
  const others=[...new Set(ALL.filter(x=>([...x.k].length===1)===single).map(x=>isKata(q.d)?toK(x.k):x.k))];
  const m=window.KanaMatch?window.KanaMatch.compare(pad,alts,others):undefined;
  if(m===null){$('msg').textContent='먼저 칸에 글자를 써 주세요.';return}
  const rivalWins=!!(m&&m.rival&&m.rival.raw>m.raw+(m.rival.close?.1:.06));
- const ok=m?m.pct>=PASS&&!rivalWins&&!m.noDot:true;
+ // 점수는 낮아도 다른 어떤 글자보다 20점 이상 앞서면 정답으로 쳐요 (시작점이나 끝이 조금 다른 つ 같은 단순한 글자)
+ const clearLead=!!(m&&m.rival&&m.pct-m.rival.pct>=20&&m.pct>=15);
+ const ok=m?!m.noDot&&((m.pct>=PASS&&!rivalWins)||clearLead):true;
  slide($('kana'),1,()=>setCard(alts.join(' · ')));
  $('padGuide').innerHTML=strokeGuide(alts[0]);$('pad').classList.add('shown');
  $('reveal').hidden=true;
@@ -280,8 +293,10 @@ function reveal(){
  judge(ok);
  drawOk=ok;
  const both=alts.length>1?` (${alts.join('와 ')} 둘 다 '${q.r}'${ye(q.r)})`:'';
- $('msg').textContent=ok?`잘 썼어요!${both}`:(m&&m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':rivalWins?`${m.rival.ch}처럼 보여요. `:m&&m.pct<PASS?'모양이 많이 달라요. ':'')+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
+ $('msg').textContent=ok?`잘 썼어요!${both}`:(m&&m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':rivalWins&&!clearLead?`${m.rival.ch}처럼 보여요. `:m&&m.pct<PASS?'모양이 많이 달라요. ':'')+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
  $('gradeFlip').textContent=ok?'채점 바꾸기: 사실 틀렸어요':'채점 바꾸기: 사실 맞게 썼어요';$('gradeFlip').hidden=false;
+ // 방금 누른 손가락이 같은 자리에 새로 생긴 '채점 바꾸기'를 바로 누르지 않게 잠깐 막아 둬요
+ $('gradeFlip').disabled=true;setTimeout(()=>{$('gradeFlip').disabled=false},700);
  $('next').hidden=false;$('next').focus();
 }
 /* 자동 채점이 틀렸을 때 결과를 뒤집어요 */

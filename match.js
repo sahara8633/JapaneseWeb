@@ -7,10 +7,10 @@
    보정값은 획마다 위치·크기·기울기를 흔들고 가로세로 비율도 ±30% 바꾼 '손글씨 흉내'(히라가나 71자)와
    인쇄체처럼 쓴 글씨(교과서체·고딕체)로 정했어요. 정답 모양은 손글씨 획과 인쇄체 두 가지 중 더 닮은 쪽을 써요.
    손글씨는 폭이 제각각이라(넓적한 う, 납작한 と) 가로세로를 각각 칸에 꽉 채워서 비교해요(asp 1).
-   tol 4칸, 정답 펜 굵기 24(327px 글자 기준), raw 0.64 → 0%, 0.96 → 100%. 통과 기준(45%)은 script.js에 있어요. */
+   tol 4.2칸, 정답 펜 굵기 24(327px 글자 기준), raw 0.62 → 0%, 0.95 → 100%. 통과 기준은 script.js에 있어요. */
 window.KanaMatch=(()=>{
  const G=64,FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic","Meiryo",sans-serif';
- const P={tol:4,lo:.64,hi:.96,w:24,asp:1,font:true,beta:1};
+ const P={tol:4.2,tol2:4.21,lo:.62,hi:.95,w:24,asp:1,font:true,beta:1};
  // 탁점·반탁점(゛゜)을 뗀 글자: が → か
  const plain=s=>s.normalize('NFD').replace(/[゙゚]/g,'').normalize('NFC');
  const off=document.createElement('canvas');off.width=off.height=G;
@@ -33,13 +33,17 @@ window.KanaMatch=(()=>{
   for(let i=0;i<G*G;i++)b[i]=d[i*4+3]>30?1:0;
   return b;
  }
- function dilate(b){
-  const o=new Uint8Array(G*G),T=P.tol;
-  for(let y=0;y<G;y++)for(let x=0;x<G;x++){if(!b[y*G+x])continue;
-   for(let dy=-T;dy<=T;dy++)for(let dx=-T;dx<=T;dx++){if(dx*dx+dy*dy>T*T+1)continue;const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<G&&Y<G)o[Y*G+X]=1}}
-  return o;
+ /* 칸마다 가장 가까운 잉크까지의 거리(두 번 훑는 chamfer 거리, 단위: 칸). 거리가 tol 이하면 만점,
+    tol2까지 점점 줄어서 0점이 돼요. 딱 잘라 자르지 않으니 조금 비껴 쓴 선도 부분 점수를 받아요. */
+ function distMap(b){
+  const INF=1e4,d=new Float32Array(G*G);for(let i=0;i<G*G;i++)d[i]=b[i]?0:INF;
+  const at=(x,y)=>x<0||y<0||x>=G||y>=G?INF:d[y*G+x];
+  for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=y*G+x;d[i]=Math.min(d[i],at(x-1,y)+1,at(x,y-1)+1,at(x-1,y-1)+1.414,at(x+1,y-1)+1.414)}
+  for(let y=G-1;y>=0;y--)for(let x=G-1;x>=0;x--){const i=y*G+x;d[i]=Math.min(d[i],at(x+1,y)+1,at(x,y+1)+1,at(x+1,y+1)+1.414,at(x-1,y+1)+1.414)}
+  return d;
  }
- const shape=b=>({b,d:dilate(b)});
+ const credit=d=>d<=P.tol?1:d>=P.tol2?0:(P.tol2-d)/(P.tol2-P.tol);
+ const shape=b=>({b,d:distMap(b)});
  function fromCanvas(cv){const c=cv.getContext('2d',{willReadFrequently:true}),box=inkBox(c,cv.width,cv.height);return box?shape(norm(cv,box)):null}
  /* 획순 데이터로 글자를 펜 선처럼 그려요. jitter(획 번호)를 주면 획마다 조금씩 흔들어 그려요(보정용). */
  function drawStrokes(ctx,ch,{scale=3,width=8,jitter=null}={}){
@@ -73,7 +77,7 @@ window.KanaMatch=(()=>{
  function raw(u,r){
   if(Array.isArray(r))return r.reduce((m,x)=>Math.max(m,raw(u,x)),0);
   if(!u||!r)return 0;let ui=0,un=0,ri=0,rn=0;
-  for(let i=0;i<G*G;i++){if(u.b[i]){un++;if(r.d[i])ui++}if(r.b[i]){rn++;if(u.d[i])ri++}}
+  for(let i=0;i<G*G;i++){if(u.b[i]){un++;ui+=credit(r.d[i])}if(r.b[i]){rn++;ri+=credit(u.d[i])}}
   const p=un?ui/un:0,q=rn?ri/rn:0,b2=P.beta*P.beta;return p+q?(1+b2)*p*q/(b2*p+q):0;
  }
  const pct=x=>Math.round(100*Math.min(1,Math.max(0,(x-P.lo)/(P.hi-P.lo))));
@@ -90,5 +94,7 @@ window.KanaMatch=(()=>{
   return {raw:top.raw,pct:pct(top.raw),noDot,rival:rival&&{...rival,pct:pct(rival.raw),close:plain(rival.ch)===bare}};
  }
  if(document.fonts&&document.fonts.load)document.fonts.load(`500 100px ${FONT}`,'あア').then(()=>REF.clear()).catch(()=>{});
- return {compare,fromCanvas,refOf,raw,pct,drawStrokes,_tune:o=>{Object.assign(P,o);REF.clear()}};
+ /* 정답 모양을 미리 만들어 둬요(폰에서 처음 채점할 때 멈추지 않게). 조금씩 나눠서 해요. */
+ function warm(chars){let i=0;const step=()=>{const t=performance.now();while(i<chars.length&&performance.now()-t<12)refOf(chars[i++]);if(i<chars.length)setTimeout(step,0)};step()}
+ return {compare,fromCanvas,refOf,raw,pct,drawStrokes,warm,_tune:o=>{Object.assign(P,o);REF.clear()}};
 })();
