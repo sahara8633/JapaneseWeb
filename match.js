@@ -4,13 +4,13 @@
    - 선 굵기와 손떨림 차이를 봐주려고 TOL 칸만큼 넓혀서 비교해요.
    - precision: 내가 쓴 선 중 정답 근처에 있는 비율, recall: 정답 선 중 내가 쓴 선 근처에 있는 비율, 둘의 조화평균이 raw 점수.
    획 순서와 방향은 보지 않아요.
-   보정값은 획마다 위치·크기·기울기를 흔들고 가로세로 비율도 ±30% 바꾼 '손글씨 흉내'(히라가나 71자)로 정했어요.
+   보정값은 획마다 위치·크기·기울기를 흔들고 가로세로 비율도 ±30% 바꾼 '손글씨 흉내'(히라가나 71자)와
+   인쇄체처럼 쓴 글씨(교과서체·고딕체)로 정했어요. 정답 모양은 손글씨 획과 인쇄체 두 가지 중 더 닮은 쪽을 써요.
    손글씨는 폭이 제각각이라(넓적한 う, 납작한 と) 가로세로를 각각 칸에 꽉 채워서 비교해요(asp 1).
-   그 결과: 깔끔한 정답 100% 통과, 많이 흐트러진 정답 82%, 닮은 다른 글자 10%, 아무 다른 글자 0%.
-   tol 4칸, 정답 펜 굵기 24(327px 글자 기준), raw 0.58 → 0%, 0.95 → 100%. */
+   tol 4칸, 정답 펜 굵기 24(327px 글자 기준), raw 0.64 → 0%, 0.96 → 100%. 통과 기준(45%)은 script.js에 있어요. */
 window.KanaMatch=(()=>{
  const G=64,FONT='"Noto Sans JP","Hiragino Sans","Yu Gothic","Meiryo",sans-serif';
- const P={tol:4,lo:.58,hi:.95,w:24,asp:1};
+ const P={tol:4,lo:.64,hi:.96,w:24,asp:1,font:true,beta:1};
  // 탁점·반탁점(゛゜)을 뗀 글자: が → か
  const plain=s=>s.normalize('NFD').replace(/[゙゚]/g,'').normalize('NFC');
  const off=document.createElement('canvas');off.width=off.height=G;
@@ -55,18 +55,26 @@ window.KanaMatch=(()=>{
   });
   return true;
  }
+ /* 정답 모양은 두 가지예요: 손글씨 획(KanjiVG)과 인쇄체(폰트). さ·き·そ·ふ처럼 손글씨와 인쇄체가 다른 글자는
+    사람마다 쓰는 방식이 달라서, 둘 중 더 닮은 쪽으로 채점해요. */
+ function shapeOfCanvas(){const box=inkBox(rctx,refC.width,refC.height);return box?shape(norm(refC,box)):null}
  function refOf(ch){
   if(REF.has(ch))return REF.get(ch);
-  const n=[...ch].length;refC.width=Math.ceil(109*3*(1+.92*(n-1)))+20;refC.height=109*3+20;
+  const n=[...ch].length,out=[];refC.width=Math.ceil(109*3*(1+.92*(n-1)))+20;refC.height=109*3+20;
   rctx.clearRect(0,0,refC.width,refC.height);rctx.save();rctx.translate(10,10);
   const ok=drawStrokes(rctx,ch,{width:P.w});rctx.restore();
-  if(!ok){rctx.fillStyle='#000';rctx.textAlign='center';rctx.textBaseline='middle';rctx.font=`500 ${n>1?150:240}px ${FONT}`;rctx.fillText(ch,refC.width/2,refC.height/2+5)}
-  const box=inkBox(rctx,refC.width,refC.height),v=box?shape(norm(refC,box)):null;REF.set(ch,v);return v;
+  if(ok)out.push(shapeOfCanvas());
+  if(P.font||!ok){
+   rctx.clearRect(0,0,refC.width,refC.height);rctx.fillStyle='#000';rctx.textAlign='center';rctx.textBaseline='middle';
+   rctx.font=`500 ${n>1?150:240}px ${FONT}`;rctx.fillText(ch,refC.width/2,refC.height/2+5);out.push(shapeOfCanvas());
+  }
+  const v=out.filter(Boolean);REF.set(ch,v);return v;
  }
  function raw(u,r){
+  if(Array.isArray(r))return r.reduce((m,x)=>Math.max(m,raw(u,x)),0);
   if(!u||!r)return 0;let ui=0,un=0,ri=0,rn=0;
   for(let i=0;i<G*G;i++){if(u.b[i]){un++;if(r.d[i])ui++}if(r.b[i]){rn++;if(u.d[i])ri++}}
-  const p=un?ui/un:0,q=rn?ri/rn:0;return p+q?2*p*q/(p+q):0;
+  const p=un?ui/un:0,q=rn?ri/rn:0,b2=P.beta*P.beta;return p+q?(1+b2)*p*q/(b2*p+q):0;
  }
  const pct=x=>Math.round(100*Math.min(1,Math.max(0,(x-P.lo)/(P.hi-P.lo))));
  /* answers: 정답으로 인정하는 글자들, others: 비교해 볼 다른 글자들. 그림이 비어 있으면 null */
@@ -75,7 +83,9 @@ window.KanaMatch=(()=>{
  function compare(cv,answers,others=[]){
   const u=fromCanvas(cv);if(!u)return null;
   const scored=answers.map(a=>({a,raw:raw(u,refOf(a))})).sort((x,y)=>y.raw-x.raw),top=scored[0];
-  const rival=others.filter(o=>!answers.includes(o)).map(ch=>({ch,raw:raw(u,refOf(ch))})).sort((a,b)=>b.raw-a.raw)[0]||null;
+  // 정답에 ゛゜가 없으면 ゛゜가 있는 글자(だ 등)와는 비교하지 않아요. 점 없이 쓴 글씨가 점 있는 글자로 보일 이유가 없어서요.
+  const dotted=plain(top.a)!==top.a;
+  const rival=others.filter(o=>!answers.includes(o)&&(dotted||plain(o)===o)).map(ch=>({ch,raw:raw(u,refOf(ch))})).sort((a,b)=>b.raw-a.raw)[0]||null;
   const bare=plain(top.a),noDot=bare!==top.a&&top.raw-raw(u,refOf(bare))< -.03;
   return {raw:top.raw,pct:pct(top.raw),noDot,rival:rival&&{...rival,pct:pct(rival.raw),close:plain(rival.ch)===bare}};
  }
