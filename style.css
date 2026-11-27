@@ -123,7 +123,9 @@ h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02e
 .pad canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:1}
 .pad .guide{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--kanaFont);font-size:min(180px,40vw);line-height:1;color:var(--ok);opacity:0;transition:opacity .35s}
 .pad.shown .guide{opacity:.22}
-.padClear{position:absolute;z-index:2;right:10px;top:10px;font:inherit;font-size:13px;font-weight:600;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--surface);color:var(--muted);cursor:pointer;box-shadow:0 1px 3px var(--shadow)}
+.padTools{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.padCard .padTools{margin-top:12px;justify-content:space-between}
+.padClear{font:inherit;font-size:13px;font-weight:600;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--surface);color:var(--muted);cursor:pointer;box-shadow:0 1px 3px var(--shadow)}
 .padScore{position:absolute;z-index:2;left:12px;top:10px;min-height:34px;padding:0 14px;border-radius:999px;display:inline-flex;align-items:center;font-size:14px;font-weight:800;background:var(--surface);color:var(--ink);box-shadow:0 1px 3px var(--shadow);animation:pop .35s var(--spring)}
 .padScore.ok{background:var(--okSoft);color:var(--ok)}
 .padScore.bad{background:var(--badSoft);color:var(--bad)}
@@ -150,7 +152,6 @@ h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02e
 .guideSvg path{fill:none;stroke:var(--line);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 .guideSvg text{font:700 6px "Noto Sans KR",sans-serif;fill:var(--muted)}
 .pad.noGuide .guideSvg{opacity:0}
-.padClear.left{right:auto;left:10px}
 
 /* writing layouts: picker on top, stroke order and a big pad side by side */
 .wl{display:grid;gap:clamp(16px,2.4vw,24px)}

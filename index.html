@@ -109,7 +109,8 @@
      <button class="go" type="submit">확인</button>
     </form>
     <div class="draw" id="draw" hidden>
-     <div class="pad" id="pad"><span class="guide" id="padGuide" lang="ja" aria-hidden="true"></span><canvas id="padC" aria-label="글자를 쓰는 칸"></canvas><button type="button" class="padClear" id="padClear">지우기</button><span class="padScore" id="padScore" hidden></span></div>
+     <div class="pad" id="pad"><span class="guide" id="padGuide" lang="ja" aria-hidden="true"></span><canvas id="padC" aria-label="글자를 쓰는 칸"></canvas><span class="padScore" id="padScore" hidden></span></div>
+     <div class="padTools"><button type="button" class="padClear" id="padClear">지우기</button></div>
      <button class="go" id="reveal" type="button">채점하기</button>
      <button class="go alt" id="gradeFlip" type="button" hidden>채점 바꾸기</button>
     </div>
@@ -140,7 +141,8 @@
     </div>
     <div class="card padCard">
      <div class="cardTop"><span>따라 써 보기</span><span></span></div>
-     <div class="pad big" id="wPad"><svg class="guideSvg" id="wGuide" viewBox="0 0 109 109" aria-hidden="true"></svg><canvas id="wPadC" aria-label="따라 쓰는 칸"></canvas><button type="button" class="padClear" id="wClear">지우기</button><button type="button" class="padClear left" id="wGuideBtn">가이드 끄기</button></div>
+     <div class="pad big" id="wPad"><svg class="guideSvg" id="wGuide" viewBox="0 0 109 109" aria-hidden="true"></svg><canvas id="wPadC" aria-label="따라 쓰는 칸"></canvas></div>
+     <div class="padTools"><button type="button" class="padClear" id="wGuideBtn">가이드 끄기</button><button type="button" class="padClear" id="wClear">지우기</button></div>
     </div>
    </div>
    <p class="note center">획순은 손으로 쓸 때의 모양이에요. 인쇄체와 획 끝(삐침 등)이 조금 다를 수 있어요.</p>
@@ -236,7 +238,8 @@
     </div>
     <div class="card padCard">
      <div class="cardTop"><span>따라 써 보기</span><span></span></div>
-     <div class="pad big" id="sPad"><svg class="guideSvg" id="sGuide" viewBox="0 0 109 109" aria-hidden="true"></svg><canvas id="sPadC" aria-label="따라 쓰는 칸"></canvas><button type="button" class="padClear" id="sClear">지우기</button><button type="button" class="padClear left" id="sGuideBtn">가이드 끄기</button></div>
+     <div class="pad big" id="sPad"><svg class="guideSvg" id="sGuide" viewBox="0 0 109 109" aria-hidden="true"></svg><canvas id="sPadC" aria-label="따라 쓰는 칸"></canvas></div>
+     <div class="padTools"><button type="button" class="padClear" id="sGuideBtn">가이드 끄기</button><button type="button" class="padClear" id="sClear">지우기</button></div>
     </div>
    </div>
    <div class="wlNav three"><button class="go alt" id="sQuit" type="button">그만하기</button><button class="go alt" id="sPrev" type="button">이전 글자</button><button class="go" id="sNext" type="button">다음 글자</button></div>
