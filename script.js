@@ -253,25 +253,34 @@ function ask(){
  }
  $('next').hidden=true;
 }
-/* 글자 쓰기 채점: 모양 일치율이 PASS% 이상이고, 다른 글자와 더 닮지 않았으면 정답 */
-const PASS=70;
+/* 글자 쓰기 채점 (기준은 match.js의 손글씨 흉내로 정했어요):
+   일치율 PASS% 이상이고, 다른 글자가 확실히 더 닮지 않았고(+0.06, ゛゜만 다른 글자는 +0.1), ゛゜를 빼먹지 않았으면 정답.
+   이 기준으로 흉내 낸 손글씨는 깔끔하면 100%, 많이 흐트러져도 82%가 통과했고, 닮은 다른 글자는 10%, 아무 글자는 0% 통과했어요. */
+const PASS=55;
 let drawOk=null;
+/* 정답 칸에 겹쳐 보여 줄 손글씨 모양(획순 데이터)을 SVG로 만들어요 */
+function strokeGuide(ch){
+ const S=window.STROKES||{},cs=[...ch];
+ if(!cs.every(c=>S[c]))return esc(ch);
+ const W=109*(1+.92*(cs.length-1));
+ return `<svg viewBox="0 0 ${W} 109" aria-hidden="true">${cs.map((c,i)=>`<g transform="translate(${i*109*.92} 0)">${S[c].p.map(d=>`<path d="${d}"/>`).join('')}</g>`).join('')}</svg>`;
+}
 function reveal(){
  const q=qs[qi];if(locked||quizMode!=='draw')return;
  const alts=altsOf(q),single=[...q.d].length===1;
  const others=[...new Set(ALL.filter(x=>([...x.k].length===1)===single).map(x=>isKata(q.d)?toK(x.k):x.k))];
  const m=window.KanaMatch?window.KanaMatch.compare(pad,alts,others):undefined;
  if(m===null){$('msg').textContent='먼저 칸에 글자를 써 주세요.';return}
- const rivalWins=!!(m&&m.rival&&m.rival.raw>m.raw+.03);
- const ok=m?m.pct>=PASS&&!rivalWins:true;
+ const rivalWins=!!(m&&m.rival&&m.rival.raw>m.raw+(m.rival.close?.1:.06));
+ const ok=m?m.pct>=PASS&&!rivalWins&&!m.noDot:true;
  slide($('kana'),1,()=>setCard(alts.join(' · ')));
- $('padGuide').textContent=alts[0];$('pad').classList.add('shown');
+ $('padGuide').innerHTML=strokeGuide(alts[0]);$('pad').classList.add('shown');
  $('reveal').hidden=true;
  if(m){const sc=$('padScore');sc.textContent=`일치율 ${m.pct}%`;sc.className='padScore '+(ok?'ok':'bad');sc.hidden=false}
  judge(ok);
  drawOk=ok;
  const both=alts.length>1?` (${alts.join('와 ')} 둘 다 '${q.r}'${ye(q.r)})`:'';
- $('msg').textContent=ok?`잘 썼어요!${both}`:(rivalWins?`${m.rival.ch}처럼 보여요. `:m&&m.pct<PASS?'모양이 많이 달라요. ':'')+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
+ $('msg').textContent=ok?`잘 썼어요!${both}`:(m&&m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':rivalWins?`${m.rival.ch}처럼 보여요. `:m&&m.pct<PASS?'모양이 많이 달라요. ':'')+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
  $('gradeFlip').textContent=ok?'채점 바꾸기: 사실 틀렸어요':'채점 바꾸기: 사실 맞게 썼어요';$('gradeFlip').hidden=false;
  $('next').hidden=false;$('next').focus();
 }
@@ -618,6 +627,7 @@ const tab=(name,first)=>{
  if(name==='kana'||name==='word')$('pPractice').setAttribute('aria-labelledby',name==='word'?'tWord':'tKana');
  history.replaceState(null,'',name==='kana'?location.pathname+location.search:'#'+name);
  if(name==='records')stats();
+ if(name==='admin'&&!adminUsers)adminLoad();
  if((name==='kana'||name==='word')&&name!==subject){run++;subject=name;idle()}
  if(name==='write'&&prev!=='write'){wsRender();wsEnds();wPad.clear();wsView.play()}
  if(name!=='write')wsStop();
@@ -684,8 +694,10 @@ function doReset(picked){
 
 /* 관리: sync.js가 관리자 계정이라고 알려 주면 '관리' 탭이 보여요. 이메일로 다른 사용자의 기록을 읽기만 해요. */
 let adminFind=null;
-function setAdmin(find){
- adminFind=find||null;$('tAdmin').hidden=!adminFind;
+function setAdmin(api){
+ adminFind=api||null;$('tAdmin').hidden=!adminFind;
+ adminUsers=null;adminPick=null;$('userList').innerHTML='';$('adminOut').hidden=true;
+ if(adminFind&&view==='admin')adminLoad();
  if(!adminFind&&view==='admin')tab('kana');
  paintSw($('tabs'),TABS.indexOf(view));
 }
@@ -712,16 +724,34 @@ function adminRender(d){
  $('aKnown').innerHTML=LV.map(l=>{const T=(WORDS[l]||[]).length,n=(WORDS[l]||[]).filter(x=>known.includes(x.w)).length;return `<span class="chip"><b>${l}</b>${n} / ${T}</span>`}).join('');
  $('adminOut').hidden=false;
 }
-$('adminForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!adminFind)return;
- const email=$('adminEmail').value.trim();
- if(!/^[^@\s]+@[^@\s]+$/.test(email)){$('adminMsg').textContent='이메일을 정확히 입력해 주세요.';return}
- $('adminMsg').textContent='찾는 중이에요…';$('adminOut').hidden=true;
- try{const d=await adminFind(email);
-  if(!d){$('adminMsg').textContent='그 이메일로 저장된 기록이 없어요. (이 기능이 생긴 뒤에 로그인한 적이 있어야 찾을 수 있어요.)';return}
-  $('adminMsg').textContent='';adminRender(d);
- }catch(err){console.error(err);$('adminMsg').textContent='기록을 읽지 못했어요. Firestore 보안 규칙에 관리자 읽기 권한이 들어갔는지 확인해 주세요.'}
+/* 전체 사용자 목록: 이메일 abc순(이메일이 없는 예전 기록은 맨 뒤), 입력한 글자로 걸러 보기 */
+let adminUsers=null,adminPick=null;
+const userKey=u=>(u.email||'').toLowerCase();
+async function adminLoad(){
+ if(!adminFind||!adminFind.list)return;
+ $('adminMsg').textContent='사용자 목록을 불러오는 중이에요…';
+ try{
+  adminUsers=(await adminFind.list()).sort((a,b)=>{const x=userKey(a),y=userKey(b);if(!x!==!y)return x?-1:1;return x.localeCompare(y,'en')||String(a.id).localeCompare(String(b.id))});
+  $('adminMsg').textContent='';adminList();
+ }catch(err){console.error(err);adminUsers=null;$('userList').innerHTML='';$('adminMsg').textContent='목록을 읽지 못했어요. Firestore 보안 규칙에 관리자 읽기 권한이 들어갔는지 확인해 주세요.'}
+}
+function adminList(){
+ if(!adminUsers)return;
+ const q=$('adminEmail').value.trim().toLowerCase();
+ const shown=adminUsers.filter(u=>!q||userKey(u).includes(q)||(u.name||'').toLowerCase().includes(q));
+ const total=d=>Object.values(d.days||{}).reduce((a,v)=>a+(+v||0),0);
+ $('userList').innerHTML=shown.length?shown.map(u=>`<button type="button" role="listitem" class="userRow" data-id="${esc(u.id)}" aria-pressed="${u.id===adminPick}"><b>${u.email?esc(u.email):'(이메일 없음)'}</b><span>${esc(u.name||'')}</span><small>${total(u)}문제${u.updated?' · '+new Date(u.updated).toLocaleDateString('ko-KR'):''}</small></button>`).join(''):`<p class="note">${q?'맞는 사용자가 없어요.':'아직 기록을 저장한 사용자가 없어요.'}</p>`;
+ $('adminMsg').textContent=`사용자 ${adminUsers.length}명`+(q?` 중 ${shown.length}명`:'');
+}
+$('userList').addEventListener('click',e=>{
+ const b=e.target.closest('.userRow');if(!b||!adminUsers)return;
+ const u=adminUsers.find(x=>x.id===b.dataset.id);if(!u)return;
+ adminPick=u.id;$$('.userRow').forEach(r=>r.setAttribute('aria-pressed',String(r===b)));
+ adminRender(u);$('adminOut').scrollIntoView({behavior:still()?'auto':'smooth',block:'start'});
 });
+$('adminEmail').addEventListener('input',adminList);
+$('adminForm').addEventListener('submit',e=>{e.preventDefault();const rows=$$('.userRow');if(rows.length===1)rows[0].click()});
+$('adminReload').addEventListener('click',adminLoad);
 
 /* theme: follows the system until the user picks one */
 const dark=matchMedia('(prefers-color-scheme: dark)');

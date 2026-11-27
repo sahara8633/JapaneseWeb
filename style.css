@@ -248,3 +248,13 @@ ruby rt{font-size:.34em;font-weight:500;color:var(--muted);letter-spacing:.04em}
 .adminStats{display:flex;flex-wrap:wrap;gap:12px}
 .adminStats div{min-width:120px;padding:14px 18px;border-radius:20px;background:var(--panel);font-size:13px;color:var(--muted)}
 .adminStats b{display:block;font-size:24px;color:var(--ink)}
+.userList{display:grid;gap:6px;max-width:760px;max-height:380px;overflow:auto;margin:6px 0 8px;padding:2px}
+.userRow{font:inherit;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;padding:12px 18px;border:0;border-radius:16px;background:var(--panel);color:var(--ink);cursor:pointer;transition:background .2s,color .2s}
+.userRow b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.userRow span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.userRow small{color:var(--muted);font-size:12px;white-space:nowrap}
+.userRow[aria-pressed=true]{background:var(--sel);color:var(--selInk)}
+.userRow[aria-pressed=true] span,.userRow[aria-pressed=true] small{color:inherit;opacity:.75}
+@media(max-width:560px){.userRow{grid-template-columns:minmax(0,1fr) auto}.userRow span{display:none}}
+.pad .guide svg{width:84%;height:84%;overflow:visible}
+.pad .guide path{fill:none;stroke:currentColor;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}

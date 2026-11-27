@@ -85,10 +85,15 @@ async function start() {
     // 관리자: Firestore admins/{내 uid} 문서가 있으면 관리 탭을 켜요. 실제로 남의 기록을 읽을 수 있는지는 보안 규칙이 정해요.
     try {
       const me = await F.getDoc(F.doc(db, 'admins', user.uid));
-      if (me.exists() && S.admin) S.admin(async email => {
-        const q = F.query(F.collection(db, 'users'), F.where('email', '==', email.trim().toLowerCase()), F.limit(1));
-        const res = await F.getDocs(q);
-        return res.empty ? null : res.docs[0].data();
+      if (me.exists() && S.admin) S.admin({
+        // 이메일로 한 명 찾기
+        find: async email => {
+          const q = F.query(F.collection(db, 'users'), F.where('email', '==', email.trim().toLowerCase()), F.limit(1));
+          const res = await F.getDocs(q);
+          return res.empty ? null : { id: res.docs[0].id, ...res.docs[0].data() };
+        },
+        // 전체 사용자 목록 (관리자만 읽을 수 있어요)
+        list: async () => (await F.getDocs(F.collection(db, 'users'))).docs.map(d => ({ id: d.id, ...d.data() })),
       });
     } catch (e) { /* 관리자가 아니거나 규칙이 아직 없으면 조용히 넘어가요 */ }
   });

@@ -273,12 +273,13 @@
 <section class="below" id="pAdmin" role="tabpanel" aria-labelledby="tAdmin" hidden>
  <div class="wrap">
   <h2>사용자 기록 보기</h2>
-  <p>사용자의 Google 이메일을 입력하세요. 이 기능이 생긴 뒤에 한 번 이상 로그인한 사용자만 찾을 수 있어요.</p>
+  <p>목록에서 사용자를 누르면 기록이 나와요. 이메일 일부를 입력하면 목록이 걸러져요. 로그인해서 기록을 저장한 적이 있는 사용자만 보여요.</p>
   <form class="adminFind" id="adminForm" autocomplete="off">
-   <input id="adminEmail" type="email" inputmode="email" placeholder="user@gmail.com" aria-label="사용자 이메일" spellcheck="false">
-   <button class="go" type="submit">찾기</button>
+   <input id="adminEmail" type="search" inputmode="email" placeholder="이메일이나 이름으로 걸러 보기" aria-label="사용자 걸러 보기" spellcheck="false">
+   <button class="go alt" type="button" id="adminReload">새로고침</button>
   </form>
   <div class="msg" id="adminMsg"></div>
+  <div class="userList" id="userList" role="list"></div>
   <div id="adminOut" hidden>
    <div class="adminHead"><b id="aName"></b><span id="aEmail"></span><span id="aUpdated"></span></div>
    <div class="adminStats">
