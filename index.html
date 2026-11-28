@@ -26,10 +26,13 @@
    </div>
   </div>
   <div class="bar2">
-   <div class="sw onField" id="tabs" role="tablist" aria-label="화면">
-    <button type="button" role="tab" id="tKana" data-tab="kana" aria-controls="pPractice" aria-selected="true">글자</button><button type="button" role="tab" id="tWrite" data-tab="write" aria-controls="pWrite" aria-selected="false">쓰기</button><button type="button" role="tab" id="tWord" data-tab="word" aria-controls="pPractice" aria-selected="false">단어</button><button type="button" role="tab" id="tCards" data-tab="cards" aria-controls="pCards" aria-selected="false">외우기</button><button type="button" role="tab" id="tRecords" data-tab="records" aria-controls="pRecords" aria-selected="false">기록</button><button type="button" role="tab" id="tAdmin" data-tab="admin" aria-controls="pAdmin" aria-selected="false" hidden>관리</button>
+   <div class="sw onField" id="tabs" role="tablist" aria-label="메뉴">
+    <button type="button" role="tab" id="tGQuiz" data-group="quiz" aria-selected="true">문제</button><button type="button" role="tab" id="tGPractice" data-group="practice" aria-selected="false">연습</button><button type="button" role="tab" id="tRecords" data-tab="records" aria-controls="pRecords" aria-selected="false">기록</button><button type="button" role="tab" id="tAdmin" data-tab="admin" aria-controls="pAdmin" aria-selected="false" hidden>관리</button>
    </div>
    <div class="streak"><div><b id="sStreak">0일</b>연속</div><div><b id="sToday">0</b>오늘 푼 문제</div></div>
+  </div>
+  <div class="sw subTabs" id="subTabs" role="tablist" aria-label="세부 메뉴">
+   <button type="button" role="tab" id="tKana" data-tab="kana" aria-controls="pPractice" aria-selected="true">글자</button><button type="button" role="tab" id="tWord" data-tab="word" aria-controls="pPractice" aria-selected="false">단어</button><button type="button" role="tab" id="tWrite" data-tab="write" aria-controls="pWrite" aria-selected="false" hidden>쓰기</button><button type="button" role="tab" id="tCards" data-tab="cards" aria-controls="pCards" aria-selected="false" hidden>외우기</button>
   </div>
   <div class="grid" id="pPractice" role="tabpanel">
    <div class="card" id="card">

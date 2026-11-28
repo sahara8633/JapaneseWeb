@@ -287,3 +287,10 @@ button,.flip,.tile,input,canvas{touch-action:manipulation}
  .bar2{margin-bottom:16px}
 }
 .kgrid{position:relative}
+
+/* 두 줄 메뉴: 위 줄은 문제·연습·기록(·관리), 아래 줄은 그 안의 세부 메뉴 */
+.sw.subTabs{width:max-content;max-width:100%;margin:-8px 0 20px;padding:4px;background:var(--surface);box-shadow:0 1px 3px var(--shadow)}
+.sw.subTabs::before{top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / var(--n,2))}
+.sw.subTabs button{min-height:34px;padding:0 22px;font-size:14px}
+body[data-view=records] .subTabs,body[data-view=admin] .subTabs{display:none}
+@media(max-width:560px){.sw.subTabs{width:100%;margin-top:-4px}.sw.subTabs button{padding:0 4px;white-space:nowrap}}

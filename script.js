@@ -671,7 +671,10 @@ $('sQuit').addEventListener('click',()=>{sView.stop();fcHome()});
 
 
 /* events: tabs */
-const TABS=['kana','write','word','cards','records','admin'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords',admin:'pAdmin'};
+/* 메뉴는 두 단계예요: 문제(글자·단어), 연습(쓰기·외우기), 기록, 관리. 화면 이름(view)은 그대로 kana·word·write·cards·records·admin */
+const GROUP={kana:'quiz',word:'quiz',write:'practice',cards:'practice',records:'records',admin:'admin'},GROUPS=['quiz','practice','records','admin'],SUBS={quiz:['kana','word'],practice:['write','cards']};
+const lastSub={quiz:'kana',practice:'write'};
+const TABS=['kana','word','write','cards','records','admin'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords',admin:'pAdmin'};
 let view='kana';
 const panelOf=name=>name==='cards'&&studyView==='study'?'pStudy':PANEL[name];
 function tabPanels(){for(const id of ['pPractice','pWrite','pCards','pStudy','pRecords','pAdmin'])$(id).hidden=id!==panelOf(view)}
@@ -679,8 +682,12 @@ const tab=(name,first)=>{
  if(name==='admin'&&!adminFind)name='kana';
  const prev=view;view=name;document.body.dataset.view=name;
  tabPanels();
- $$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
- paintSw($('tabs'),TABS.indexOf(name));
+ const g=GROUP[name];if(SUBS[g])lastSub[g]=name;
+ $$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String((b.dataset.group||GROUP[b.dataset.tab])===g)));
+ paintSw($('tabs'),GROUPS.indexOf(g));
+ const subs=SUBS[g]||[];
+ $$('#subTabs button').forEach(b=>{b.hidden=!subs.includes(b.dataset.tab);b.setAttribute('aria-selected',String(b.dataset.tab===name))});
+ if(subs.length)paintSw($('subTabs'),subs.indexOf(name));
  if(name==='kana'||name==='word')$('pPractice').setAttribute('aria-labelledby',name==='word'?'tWord':'tKana');
  history.replaceState(null,'',name==='kana'?location.pathname+location.search:'#'+name);
  if(name==='records')stats();
@@ -692,7 +699,8 @@ const tab=(name,first)=>{
  if(name!=='cards')sView.stop();
  if(!first&&prev!==name)slideIn($(panelOf(name)),TABS.indexOf(name)>TABS.indexOf(prev)?1:-1);
 };
-$$('#tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab)));
+$$('#tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.group?lastSub[b.dataset.group]:b.dataset.tab)));
+$$('#subTabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab)));
 
 /* events: quiz */
 $('start').addEventListener('click',()=>start(kanaList(),count('kana'),cfg.mode));
@@ -757,7 +765,7 @@ function setAdmin(api){
  adminUsers=null;adminPick=null;$('userList').innerHTML='';$('adminOut').hidden=true;
  if(adminFind&&view==='admin')adminLoad();
  if(!adminFind&&view==='admin')tab('kana');
- paintSw($('tabs'),TABS.indexOf(view));
+ paintSw($('tabs'),GROUPS.indexOf(GROUP[view]));
 }
 function streakOf(days){
  const t=today();let d=new Date(),n=0;if(!days[t])d.setDate(d.getDate()-1);
