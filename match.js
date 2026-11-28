@@ -98,3 +98,81 @@ window.KanaMatch=(()=>{
  function warm(chars){let i=0;const step=()=>{const t=performance.now();while(i<chars.length&&performance.now()-t<12)refOf(chars[i++]);if(i<chars.length)setTimeout(step,0)};step()}
  return {compare,fromCanvas,refOf,raw,pct,drawStrokes,warm,_tune:o=>{Object.assign(P,o);REF.clear()}};
 })();
+
+/* 획 단위 인식: 내가 그은 선 하나하나를 손글씨 획순 데이터(KanjiVG)의 획과 비교해요.
+   - 글자 전체를 같은 칸에 맞춘 뒤(가로세로 비율은 절반만 맞춰요), 획마다 같은 간격으로 N개 점을 찍어요.
+   - 두 획의 거리 = 점끼리 평균 거리 + 방향 차이. 거꾸로 그은 획도 조금만 감점해요.
+   - 획 순서가 달라도 되도록, 내 획과 정답 획을 가장 잘 맞는 짝으로 묶어요(남거나 빠진 획은 감점).
+   - 모든 후보 글자와 비교해서 정답이 가장 가깝거나 거의 같으면 정답이에요.
+   픽셀이 얼마나 겹치는지 보는 방식보다 글자 비율·간격 차이(넓적한 く, 떨어진 ら의 점, 멀리 찍은 ゛)에 훨씬 덜 민감해요. */
+window.StrokeMatch=(()=>{
+ const N=20,Q={asp:1,wDir:.35,miss:.5,rev:.08,lo:.1,hi:.45};
+ const NS='http://www.w3.org/2000/svg';let host=null;
+ const pathEl=d=>{if(!host){host=document.createElementNS(NS,'svg');host.setAttribute('width','0');host.setAttribute('height','0');host.setAttribute('aria-hidden','true');host.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden';document.body.append(host)}const p=document.createElementNS(NS,'path');p.setAttribute('d',d);host.append(p);return p};
+ const len=pts=>{let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);return L};
+ function resample(pts){
+  if(pts.length<2)return Array.from({length:N},()=>pts[0].slice());
+  const L=len(pts);if(!L)return Array.from({length:N},()=>pts[0].slice());
+  const out=[pts[0].slice()],step=L/(N-1);let acc=0,i=1,prev=pts[0];
+  while(out.length<N-1&&i<pts.length){
+   const cur=pts[i],d=Math.hypot(cur[0]-prev[0],cur[1]-prev[1]);
+   if(acc+d>=step&&d>0){const t=(step-acc)/d,q=[prev[0]+t*(cur[0]-prev[0]),prev[1]+t*(cur[1]-prev[1])];out.push(q);prev=q;acc=0}
+   else{acc+=d;prev=cur;i++}
+  }
+  while(out.length<N)out.push(pts[pts.length-1].slice());
+  return out;
+ }
+ /* 획 묶음을 글자 단위로 정규화: 가운데를 0으로, 긴 변 기준 크기 1, 가로세로 비율은 asp만큼만 맞춰요 */
+ function prep(strokes){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  strokes.forEach(s=>s.forEach(([x,y])=>{if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}));
+  const w=x1-x0,h=y1-y0,M=Math.max(w,h)||1,a=Q.asp,cx=(x0+x1)/2,cy=(y0+y1)/2;
+  const sx=1/((1-a)*M+a*Math.max(w,M*.2)),sy=1/((1-a)*M+a*Math.max(h,M*.2));
+  return strokes.map(s=>{const p=resample(s.map(([x,y])=>[(x-cx)*sx,(y-cy)*sy]));return {p,w:Math.min(1,Math.max(.3,len(p)/.8))}});
+ }
+ const REF=new Map();
+ function ref(ch){
+  if(REF.has(ch))return REF.get(ch);
+  const S=window.STROKES||{},cs=[...ch];
+  if(!cs.every(c=>S[c])){REF.set(ch,null);return null}
+  const raw=[];
+  cs.forEach((c,ci)=>S[c].p.forEach(d=>{const el=pathEl(d),L=el.getTotalLength(),pts=[];for(let i=0;i<=40;i++){const q=el.getPointAtLength(L*i/40);pts.push([q.x+ci*109*.92,q.y])}el.remove();raw.push(pts)}));
+  const v=prep(raw);REF.set(ch,v);return v;
+ }
+ function sdist(u,r){
+  let pos=0,dir=0;
+  for(let i=0;i<N;i++)pos+=Math.hypot(u[i][0]-r[i][0],u[i][1]-r[i][1]);
+  for(let i=0;i<N-1;i++){
+   const ux=u[i+1][0]-u[i][0],uy=u[i+1][1]-u[i][1],rx=r[i+1][0]-r[i][0],ry=r[i+1][1]-r[i][1],nu=Math.hypot(ux,uy),nr=Math.hypot(rx,ry);
+   dir+=nu&&nr?(1-(ux*rx+uy*ry)/(nu*nr))/2:.25;
+  }
+  return pos/N+Q.wDir*dir/(N-1);
+ }
+ const pairCost=(u,r)=>Math.min(sdist(u.p,r.p),sdist(u.p.slice().reverse(),r.p)+Q.rev);
+ /* 획 짝짓기: 정답 획 집합(비트마스크)에 대한 동적 계획법. 남는 내 획, 빠진 정답 획은 miss×획 길이 가중치만큼 감점 */
+ function dist(U,R){
+  // 획 길이 가중치(w)로 비용을 매겨서, 탁점 같은 짧은 획은 조금만 영향을 줘요
+  const n=U.length,m=R.length,C=U.map(u=>R.map(r=>pairCost(u,r)*(u.w+r.w)/2));
+  let dp=new Map([[0,0]]);
+  for(let i=0;i<n;i++){
+   const nx=new Map(),put=(k,v)=>{if(!nx.has(k)||nx.get(k)>v)nx.set(k,v)};
+   for(const [mask,c] of dp){put(mask,c+Q.miss*U[i].w);for(let j=0;j<m;j++)if(!(mask&1<<j))put(mask|1<<j,c+C[i][j])}
+   dp=nx;
+  }
+  let best=1e9;for(const [mask,c] of dp){let t=c;for(let j=0;j<m;j++)if(!(mask&1<<j))t+=Q.miss*R[j].w;if(t<best)best=t}
+  return best/Math.max(U.reduce((a,x)=>a+x.w,0),R.reduce((a,x)=>a+x.w,0));
+ }
+ const pct=d=>Math.round(100*Math.min(1,Math.max(0,(Q.hi-d)/(Q.hi-Q.lo))));
+ /* userStrokes: [[[x,y],...],...]. answers: 정답으로 인정하는 글자들, others: 함께 비교할 글자들 */
+ function recognize(userStrokes,answers,others=[]){
+  const strokes=userStrokes.filter(s=>s.length);
+  if(!strokes.length)return null;
+  if(!answers.every(a=>ref(a)))return undefined;
+  const U=prep(strokes),score=ch=>{const R=ref(ch);return R?dist(U,R):1e9};
+  const top=answers.map(a=>({ch:a,d:score(a)})).sort((x,y)=>x.d-y.d)[0];
+  const rival=others.filter(o=>!answers.includes(o)).map(ch=>({ch,d:score(ch)})).sort((x,y)=>x.d-y.d)[0]||null;
+  return {d:top.d,pct:pct(top.d),answer:top.ch,rival:rival&&{...rival,pct:pct(rival.d)}};
+ }
+ function warm(chars){let i=0;const step=()=>{const t=performance.now();while(i<chars.length&&performance.now()-t<12)ref(chars[i++]);if(i<chars.length)setTimeout(step,0)};step()}
+ return {recognize,ref,prep,dist,pct,warm,_tune:o=>{Object.assign(Q,o)}};
+})();

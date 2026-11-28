@@ -2,13 +2,16 @@
 const P=s=>s.split(' ').map(x=>{const [k,r]=x.split(':');return {k,r}});
 const BASE=P('あ:아 い:이 う:우 え:에 お:오 か:카 き:키 く:쿠 け:케 こ:코 さ:사 し:시 す:스 せ:세 そ:소 た:타 ち:치 つ:츠 て:테 と:토 な:나 に:니 ぬ:누 ね:네 の:노 は:하 ひ:히 ふ:후 へ:헤 ほ:호 ま:마 み:미 む:무 め:메 も:모 や:야 ゆ:유 よ:요 ら:라 り:리 る:루 れ:레 ろ:로 わ:와 を:오 ん:응');
 const DAK=P('が:가 ぎ:기 ぐ:구 げ:게 ご:고 ざ:자 じ:지 ず:즈 ぜ:제 ぞ:조 だ:다 ぢ:지 づ:즈 で:데 ど:도 ば:바 び:비 ぶ:부 べ:베 ぼ:보 ぱ:파 ぴ:피 ぷ:푸 ぺ:페 ぽ:포');
-const YOON=P('きゃ:캬 きゅ:큐 きょ:쿄 しゃ:샤 しゅ:슈 しょ:쇼 ちゃ:차 ちゅ:추 ちょ:초 にゃ:냐 にゅ:뉴 にょ:뇨 ひゃ:햐 ひゅ:휴 ひょ:효 みゃ:먀 みゅ:뮤 みょ:묘 りゃ:랴 りゅ:류 りょ:료 ぎゃ:갸 ぎゅ:규 ぎょ:교 じゃ:쟈 じゅ:쥬 じょ:죠 びゃ:뱌 びゅ:뷰 びょ:뵤 ぴゃ:퍄 ぴゅ:퓨 ぴょ:표');
+const YOON=P('きゃ:캬 きゅ:큐 きょ:쿄 しゃ:샤 しゅ:슈 しょ:쇼 ちゃ:챠 ちゅ:츄 ちょ:쵸 にゃ:냐 にゅ:뉴 にょ:뇨 ひゃ:햐 ひゅ:휴 ひょ:효 みゃ:먀 みゅ:뮤 みょ:묘 りゃ:랴 りゅ:류 りょ:료 ぎゃ:갸 ぎゅ:규 ぎょ:교 じゃ:쟈 じゅ:쥬 じょ:죠 びゃ:뱌 びゅ:뷰 びょ:뵤 ぴゃ:퍄 ぴゅ:퓨 ぴょ:표');
 /* kana that look alike, separately for each script */
 const LOOK={'ぬ':'めね','め':'ぬあの','ね':'れわぬ','れ':'ねわ','わ':'ねれ','る':'ろ','ろ':'る','さ':'ちき','ち':'さら','き':'さ','は':'ほけ','ほ':'はま','い':'りこ','り':'い','あ':'おめ','お':'あ','し':'つ','つ':'しう','う':'つら','ら':'うち','ま':'もほ','も':'ま','こ':'い','け':'は','な':'た','た':'な','の':'め','ぱ':'ば','ば':'ぱ','ぴ':'び','び':'ぴ','ぷ':'ぶ','ぶ':'ぷ','ぺ':'べ','べ':'ぺ','ぽ':'ぼ','ぼ':'ぽ','ず':'づ','づ':'ず','じ':'ぢ','ぢ':'じ','そ':'て','て':'そ','く':'へ','へ':'く'};
 const LOOKK={'シ':'ツミ','ツ':'シソ','ソ':'ンリ','ン':'ソノ','ノ':'ンメ','ク':'ケタワ','ケ':'ク','タ':'ク','ワ':'ウクフ','ウ':'ワラ','フ':'ワヲ','ヲ':'フヨ','ラ':'ウヲ','ヨ':'ユコ','ユ':'ヨコ','コ':'ユロ','ロ':'コ','ア':'マヤ','マ':'アム','ム':'マ','ヤ':'セア','セ':'ヤサ','サ':'セキ','キ':'サチ','チ':'テキ','テ':'チナ','ナ':'メテ','メ':'ナノヌ','ヌ':'メス','ス':'ヌネ','ネ':'スホ','ホ':'ネオ','オ':'ホ','ハ':'ル','ル':'レハ','レ':'ル','エ':'ユコ','ニ':'コエ','イ':'ト','ト':'イヒ','ヒ':'ト','リ':'ソ','パ':'バ','バ':'パ','ピ':'ビ','ビ':'ピ','プ':'ブ','ブ':'プ','ペ':'ベ','ベ':'ペ','ポ':'ボ','ボ':'ポ','ズ':'ヅ','ヅ':'ズ','ジ':'ヂ','ヂ':'ジ'};
 const ALL=[...BASE,...DAK,...YOON];
 const RD={};ALL.forEach(x=>{if(!RD[x.k])RD[x.k]=x.r});
 const YOON_R=new Set(YOON.map(x=>x.r));
+/* 발음 쓰기에서 함께 정답으로 치는 다른 표기 (표기법마다 달라요) */
+const ALSO={'챠':['차'],'츄':['추'],'쵸':['초'],'쟈':['자'],'쥬':['주'],'죠':['조'],'츠':['쓰','쯔'],'응':['ㅇ','은']};
+const sameReading=(typed,r)=>typed===r||(ALSO[r]||[]).includes(typed);
 /* kana that sound the same: お·を 오, じ·ぢ 지, ず·づ 즈. The first one is the usual spelling. */
 const SAME={};ALL.forEach(x=>{(SAME[x.r]=SAME[x.r]||[]).push(x.k)});
 const toK=s=>[...s].map(c=>{const n=c.charCodeAt(0);return n>=0x3041&&n<=0x3096?String.fromCharCode(n+0x60):c}).join('');
@@ -86,11 +89,13 @@ const setupView=()=>subject==='kana'?'vSetup':'vWSetup';
 const setCard=(t,lang='ja',rt='')=>{const el=$('kana'),n=[...t].length;if(rt&&rt!==t)el.innerHTML=`<ruby>${esc(t)}<rt>${esc(rt)}</rt></ruby>`;else el.textContent=t;el.lang=lang;el.className='kana'+(lang==='ko'?' ko':'')+(n<=1?'':n<=2?' small':n<=4?' w3':n<=7?' w5':' w8')};
 const still=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* slide el out to one side, swap its content, slide it back in from the other side */
+/* 늦게 끝난 애니메이션이 새 내용을 예전 글자로 덮어쓰지 않게, 마지막으로 시작한 slide만 바꿔요 */
+const stopSlide=el=>{el._slide=(el._slide||0)+1;el.getAnimations().forEach(a=>a.cancel())};
 const slide=(el,dir,swap)=>{
+ stopSlide(el);const id=el._slide;
  if(still()||!el.animate){swap();return}
- el.getAnimations().forEach(a=>a.finish());
  const out=el.animate([{transform:'translateX(0)',opacity:1},{transform:`translateX(${-dir*40}px)`,opacity:0}],{duration:140,easing:'ease-in'});
- out.onfinish=()=>{swap();el.animate([{transform:`translateX(${dir*40}px)`,opacity:0},{transform:'translateX(0)',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'})};
+ out.onfinish=()=>{if(el._slide!==id)return;swap();el.animate([{transform:`translateX(${dir*40}px)`,opacity:0},{transform:'translateX(0)',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'})};
 };
 const slideIn=(el,dir)=>{if(still()||!el.animate)return;el.animate([{transform:`translateX(${dir*32}px)`,opacity:0},{transform:'translateX(0)',opacity:1}],{duration:320,easing:'cubic-bezier(.2,.8,.2,1)'})};
 const paintSw=(el,i)=>{el.style.setProperty('--n',[...el.children].filter(c=>!c.hidden).length);el.style.setProperty('--i',i)};
@@ -162,7 +167,7 @@ function showIdle(dir){
 }
 setInterval(()=>{if(!document.hidden&&!$('pPractice').hidden&&!$(setupView()).hidden)showIdle(1)},3500);
 function idle(){
- show(setupView());$('bar').style.width='0';$('stamp').classList.remove('on');
+ stopSlide($('kana'));show(setupView());$('bar').style.width='0';$('stamp').classList.remove('on');
  $('cTL').textContent='';$('cTR').textContent='';showIdle();stats();
 }
 
@@ -173,11 +178,11 @@ function build(list,n){
 }
 function start(list,n,mode){
  if(!list.length)return;
- run++;quizMode=mode;qs=build(list,n);qi=0;score=0;wrong=[];show('vQuiz');ask();
+ run++;quizMode=mode;qs=build(list,n);qi=0;score=0;wrong=[];show('vQuiz');stopSlide($('kana'));ask();
  // 글자 쓰기는 채점할 때 쓰는 정답 모양을 미리 만들어 둬요 (폰에서 첫 채점이 멈추지 않게)
  // 폰에서는 퀴즈가 화면을 꽉 채우게 카드 위로 스크롤해요
  if(matchMedia('(max-width:760px)').matches)requestAnimationFrame(()=>$('card').scrollIntoView({block:'start',behavior:still()?'auto':'smooth'}));
- if(mode==='draw'&&window.KanaMatch){const sc=new Set(qs.map(q=>isKata(q.d)?'k':'h'));window.KanaMatch.warm([...sc].flatMap(x=>ALL.map(a=>x==='k'?toK(a.k):a.k)))}
+ if(mode==='draw'&&window.KanaMatch){const sc=new Set(qs.map(q=>isKata(q.d)?'k':'h'));const chars=[...sc].flatMap(x=>ALL.map(a=>x==='k'?toK(a.k):a.k));if(window.StrokeMatch)window.StrokeMatch.warm(chars);else window.KanaMatch.warm(chars)}
 }
 
 /* wrong answers that are worth falling for: look-alike kana, then same row or same vowel sound */
@@ -219,13 +224,13 @@ const eul=s=>fin(s)?'을':'를',eun=s=>fin(s)?'은':'는',ye=s=>fin(s)?'이에�
 
 /* drawing pads (글자 쓰기, 쓰기 연습) */
 function makePad(cv){
- let ctx=null,drawing=false,last=null;
+ let ctx=null,drawing=false,last=null,lines=[];
  const size=()=>{const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;if(!r.width)return;cv.width=r.width*dpr;cv.height=r.height*dpr;ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=Math.max(6,r.width/30)};
  const at=e=>{const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}};
- cv.addEventListener('pointerdown',e=>{if(!ctx)size();if(!ctx)return;e.preventDefault();cv.setPointerCapture(e.pointerId);drawing=true;last=at(e);ctx.strokeStyle=getComputedStyle(cv).color;ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(last.x+.01,last.y);ctx.stroke()});
- cv.addEventListener('pointermove',e=>{if(!drawing)return;const q=at(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q});
+ cv.addEventListener('pointerdown',e=>{if(!ctx)size();if(!ctx)return;e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}drawing=true;last=at(e);lines.push([[last.x,last.y]]);ctx.strokeStyle=getComputedStyle(cv).color;ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(last.x+.01,last.y);ctx.stroke()});
+ cv.addEventListener('pointermove',e=>{if(!drawing)return;const q=at(e);lines[lines.length-1].push([q.x,q.y]);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q});
  ['pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,()=>{drawing=false}));
- return {clear:()=>{size();if(ctx)ctx.clearRect(0,0,cv.width,cv.height)},wipe:()=>{if(ctx)ctx.clearRect(0,0,cv.width,cv.height)}};
+ return {clear:()=>{lines=[];size();if(ctx)ctx.clearRect(0,0,cv.width,cv.height)},wipe:()=>{lines=[];if(ctx)ctx.clearRect(0,0,cv.width,cv.height)},strokes:()=>lines.filter(l=>l.length)};
 }
 const pad=$('padC'),quizPad=makePad(pad),clearPad=quizPad.clear;
 $('padClear').addEventListener('click',quizPad.wipe);
@@ -262,6 +267,7 @@ function ask(){
    일치율 PASS% 이상이고, 다른 글자가 확실히 더 닮지 않았고(+0.06, ゛゜만 다른 글자는 +0.1), ゛゜를 빼먹지 않았으면 정답.
    이 기준으로 흉내 낸 손글씨는 깔끔하면 100%, 많이 흐트러져도 86%, 인쇄체처럼 써도 98%가 통과했고, 닮은 다른 글자는 7%, 아무 글자는 0% 통과했어요. */
 const PASS=45;
+const plain=c=>c.normalize('NFD').replace(/[\u3099\u309A]/g,'').normalize('NFC');
 let drawOk=null;
 /* 정답 칸에 겹쳐 보여 줄 손글씨 모양(획순 데이터)을 SVG로 만들어요 */
 function strokeGuide(ch){
@@ -280,20 +286,29 @@ function reveal(){
 function grade(q){
  const alts=altsOf(q),single=[...q.d].length===1;
  const others=[...new Set(ALL.filter(x=>([...x.k].length===1)===single).map(x=>isKata(q.d)?toK(x.k):x.k))];
- const m=window.KanaMatch?window.KanaMatch.compare(pad,alts,others):undefined;
- if(m===null){$('msg').textContent='먼저 칸에 글자를 써 주세요.';return}
- const rivalWins=!!(m&&m.rival&&m.rival.raw>m.raw+(m.rival.close?.1:.06));
- // 점수는 낮아도 다른 어떤 글자보다 20점 이상 앞서면 정답으로 쳐요 (시작점이나 끝이 조금 다른 つ 같은 단순한 글자)
- const clearLead=!!(m&&m.rival&&m.pct-m.rival.pct>=20&&m.pct>=15);
- const ok=m?!m.noDot&&((m.pct>=PASS&&!rivalWins)||clearLead):true;
+ /* 채점은 획 단위 인식(StrokeMatch)으로 해요: 내가 그은 선을 손글씨 획순 데이터의 획과 위치·방향으로 비교하고,
+    같은 종류의 모든 글자 중 정답이 가장 가깝거나 거의 같으면(0.06 이내) 정답이에요.
+    보내 준 실제 손글씨 14개 중 12개가 통과했고, 흉내 낸 손글씨에서 닮은 다른 글자는 3%, 아무 글자는 0%, 탁점 빠뜨림은 0%만 통과했어요.
+    획 기록이 없을 때만 예전 방식(픽셀이 겹치는 정도)으로 채점해요. */
+ const SM=window.StrokeMatch,lines=quizPad.strokes();
+ if(!lines.length){$('msg').textContent='먼저 칸에 글자를 써 주세요.';return}
+ let r=SM?SM.recognize(lines,alts,others):undefined,ok,why='';
+ if(r){
+  const gap=r.rival?r.d-r.rival.d:-1;
+  ok=r.d<=.4&&gap<=.06;
+  if(!ok)why=r.rival&&gap>.06?(plain(r.rival.ch)===plain(r.answer)&&plain(r.rival.ch)===r.rival.ch?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':`${r.rival.ch}처럼 보여요. `):'모양이 많이 달라요. ';
+ }else{
+  const m=window.KanaMatch?window.KanaMatch.compare(pad,alts,others):undefined;
+  r=m&&{pct:m.pct};ok=m?!m.noDot&&m.pct>=PASS:true;if(!ok&&m)why=m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':'모양이 많이 달라요. ';
+ }
  slide($('kana'),1,()=>setCard(alts.join(' · ')));
  $('padGuide').innerHTML=strokeGuide(alts[0]);$('pad').classList.add('shown');
  $('reveal').hidden=true;
- if(m){const sc=$('padScore');sc.textContent=`일치율 ${m.pct}%`;sc.className='padScore '+(ok?'ok':'bad');sc.hidden=false}
+ if(r){const sc=$('padScore');sc.textContent=`일치율 ${r.pct}%`;sc.className='padScore '+(ok?'ok':'bad');sc.hidden=false}
  judge(ok);
  drawOk=ok;
  const both=alts.length>1?` (${alts.join('와 ')} 둘 다 '${q.r}'${ye(q.r)})`:'';
- $('msg').textContent=ok?`잘 썼어요!${both}`:(m&&m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':rivalWins&&!clearLead?`${m.rival.ch}처럼 보여요. `:m&&m.pct<PASS?'모양이 많이 달라요. ':'')+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
+ $('msg').textContent=ok?`잘 썼어요!${both}`:why+`'${q.r}'${eun(q.r)} ${alts.join(' 또는 ')}${ye(alts[alts.length-1])}.`;
  $('gradeFlip').textContent=ok?'채점 바꾸기: 사실 틀렸어요':'채점 바꾸기: 사실 맞게 썼어요';$('gradeFlip').hidden=false;
  // 방금 누른 손가락이 같은 자리에 새로 생긴 '채점 바꾸기'를 바로 누르지 않게 잠깐 막아 둬요
  $('gradeFlip').disabled=true;setTimeout(()=>{$('gradeFlip').disabled=false},700);
@@ -335,7 +350,7 @@ function judge(ok,btn){
 function nextQ(){
  qi++;if(qi<qs.length){ask();return}
  $('bar').style.width='100%';$('stamp').classList.remove('on');show('vDone');
- setCard(`${score}/${qs.length}`,'ko');
+ stopSlide($('kana'));setCard(`${score}/${qs.length}`,'ko');
  $('cTL').textContent='결과';$('cTR').textContent='';
  const pct=Math.round(score/qs.length*100);
  $('cBot').style.color=pct>=80?'var(--ok)':'var(--bad)';$('cBot').textContent=pct===100?'다 맞혔어요!':pct+'%';
@@ -658,7 +673,7 @@ $$('#tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab))
 $('start').addEventListener('click',()=>start(kanaList(),count('kana'),cfg.mode));
 $('wStart').addEventListener('click',()=>start(wordList(),count('word'),wcfg.mode));
 $('opts').addEventListener('click',e=>{const b=e.target.closest('.opt');if(b)judge(b.dataset.a===answerOf(qs[qi]),b)});
-$('typeForm').addEventListener('submit',e=>{e.preventDefault();const v=$('typeIn').value.replace(/\s/g,'');if(!v||locked)return;judge(v===qs[qi].r)});
+$('typeForm').addEventListener('submit',e=>{e.preventDefault();const v=$('typeIn').value.replace(/\s/g,'');if(!v||locked)return;judge(sameReading(v,qs[qi].r))});
 $('reveal').addEventListener('click',reveal);
 $('gradeFlip').addEventListener('click',flipGrade);
 $('next').addEventListener('click',nextQ);
