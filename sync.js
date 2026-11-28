@@ -44,7 +44,8 @@ async function start() {
     else if (confirm('정말 로그아웃할까요?')) A.signOut(auth);
   });
   if (dlg) {
-    dlg.addEventListener('close', () => { if (dlg.returnValue === 'ok') A.signOut(auth); dlg.returnValue = ''; });
+    // '로그아웃' 버튼을 누를 때 바로 로그아웃해요 (dialog의 close 이벤트에 기대지 않아요)
+    dlg.querySelector('button[value="ok"]').addEventListener('click', () => A.signOut(auth));
     dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close('cancel'); });
   }
 
@@ -71,7 +72,7 @@ async function start() {
       const snap = await F.getDoc(ref);
       const merged = S.mergeIn(snap.exists() ? snap.data() : {});
       // 이메일과 이름은 관리자가 이메일로 기록을 찾을 때 써요
-      await F.setDoc(ref, { days: merged.days, miss: merged.miss, wmiss: merged.wmiss, known: merged.known, resets: merged.resets,
+      await F.setDoc(ref, { days: merged.days, miss: merged.miss, wmiss: merged.wmiss, known: merged.known, tpl: merged.tpl, resets: merged.resets,
         email: (user.email || '').toLowerCase(), name: user.displayName || '', updated: Date.now() });
     };
     try {

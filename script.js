@@ -27,16 +27,17 @@ const today=()=>new Date().toLocaleDateString('sv');
 
 /* records */
 const KEY='kana-daily-v1';
-let store={days:{},miss:{},wmiss:{},known:{},resets:{}};
-try{const t=JSON.parse(localStorage.getItem(KEY)||'null');if(t&&t.days)store=Object.assign({miss:{},wmiss:{},known:{},resets:{}},t)}catch(e){}
+let store={days:{},miss:{},wmiss:{},known:{},tpl:{},resets:{}};
+try{const t=JSON.parse(localStorage.getItem(KEY)||'null');if(t&&t.days)store=Object.assign({miss:{},wmiss:{},known:{},tpl:{},resets:{}},t)}catch(e){}
 let cloud=null,wTimer=0,writing=Promise.resolve();
 const pushCloud=()=>{if(!cloud)return;clearTimeout(wTimer);wTimer=setTimeout(()=>{const body=JSON.parse(JSON.stringify(store));writing=writing.then(()=>cloud.set(body)).catch(()=>{})},1500)};
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}pushCloud()};
 /* 두 기록 합치기. resets에는 종류별로 마지막으로 지운 시각이 있어요:
    한쪽이 더 나중에 지웠으면 그 종류는 그쪽 기록만 남겨서, 지운 기록이 다른 기기나 계정에서 되살아나지 않아요. */
+const TPL_MAX=3;
 const CATS={days:()=>true,miss:k=>k.length<=3,wmiss:k=>k.length<=20,known:k=>k.length<=20};
 const merge=(a,b)=>{
- const o={days:{},miss:{},wmiss:{},known:{},resets:{}};
+ const o={days:{},miss:{},wmiss:{},known:{},tpl:{},resets:{}};
  for(const [cat,ok] of Object.entries(CATS)){
   const ra=(a.resets||{})[cat]||0,rb=(b.resets||{})[cat]||0;o.resets[cat]=Math.max(ra,rb);
   for(const s of [a,b]){
@@ -51,6 +52,13 @@ const merge=(a,b)=>{
    }
   }
  }
+ // 내 글씨: 글자마다 양쪽 기록을 합쳐서(같은 시각은 하나로) 최근 TPL_MAX개만 남겨요. 지운 시각보다 예전 것은 버려요.
+ const rt=Math.max((a.resets||{}).tpl||0,(b.resets||{}).tpl||0);o.resets.tpl=rt;
+ for(const s of [a,b])for(const [k,list] of Object.entries(s.tpl||{})){
+  if(k.length>3||!Array.isArray(list))continue;
+  for(const it of list)if(it&&typeof it.t==='number'&&typeof it.s==='string'&&it.s.length<4000&&it.t>rt&&!(o.tpl[k]||[]).some(x=>x.t===it.t))(o.tpl[k]=o.tpl[k]||[]).push({t:it.t,s:it.s});
+ }
+ for(const k in o.tpl)o.tpl[k]=o.tpl[k].sort((x,y)=>y.t-x.t).slice(0,TPL_MAX);
  return o;
 };
 
@@ -292,7 +300,7 @@ function grade(q){
     획 기록이 없을 때만 예전 방식(픽셀이 겹치는 정도)으로 채점해요. */
  const SM=window.StrokeMatch,lines=quizPad.strokes();
  if(!lines.length){$('msg').textContent='먼저 칸에 글자를 써 주세요.';return}
- let r=SM?SM.recognize(lines,alts,others):undefined,ok,why='';
+ let r=SM?SM.recognize(lines,alts,others,myShapes):undefined,ok,why='';lastWriting=r&&r.user?{ch:r.answer,u:r.user}:null;lastTpl=null;
  if(r){
   const gap=r.rival?r.d-r.rival.d:-1;
   ok=r.d<=.4&&gap<=.06;
@@ -314,6 +322,21 @@ function grade(q){
  $('gradeFlip').disabled=true;setTimeout(()=>{$('gradeFlip').disabled=false},700);
  $('next').hidden=false;$('next').focus();
 }
+/* 내 글씨 기억: '채점 바꾸기: 사실 맞게 썼어요'를 누르면 그때 쓴 획을 그 글자의 추가 정답 모양으로 저장해요.
+   다음 채점부터 손글씨 데이터와 함께 비교해서, 쓸수록 내 글씨체에 맞춰져요. 글자마다 최근 3개까지. */
+let lastWriting=null,lastTpl=null;
+const tplCache=new Map();
+function myShapes(ch){
+ const list=(store.tpl||{})[ch];if(!list||!window.StrokeMatch)return [];
+ return list.map(it=>{if(!tplCache.has(it.s))tplCache.set(it.s,window.StrokeMatch.unpack(it.s));return tplCache.get(it.s)}).filter(Boolean);
+}
+function rememberWriting(){
+ if(!lastWriting||!window.StrokeMatch)return null;
+ const it={t:Date.now(),s:window.StrokeMatch.pack(lastWriting.u)},k=lastWriting.ch;
+ store.tpl=store.tpl||{};store.tpl[k]=[it,...(store.tpl[k]||[])].slice(0,TPL_MAX);
+ return {k,t:it.t};
+}
+function forgetWriting(x){if(!x||!store.tpl||!store.tpl[x.k])return;store.tpl[x.k]=store.tpl[x.k].filter(it=>it.t!==x.t);if(!store.tpl[x.k].length)Reflect.deleteProperty(store.tpl,x.k)}
 /* 자동 채점이 틀렸을 때 결과를 뒤집어요 */
 function flipGrade(){
  if(quizMode!=='draw'||!locked||drawOk===null)return;
@@ -323,7 +346,9 @@ function flipGrade(){
  drawOk=!drawOk;
  $('padScore').classList.toggle('ok',drawOk);$('padScore').classList.toggle('bad',!drawOk);
  $('gradeFlip').textContent=drawOk?'채점 바꾸기: 사실 틀렸어요':'채점 바꾸기: 사실 맞게 썼어요';
- $('msg').textContent=drawOk?'맞은 걸로 바꿨어요.':'틀린 걸로 바꿨어요.';
+ // 맞게 썼다고 바꾸면 그 글씨를 기억하고, 다시 틀렸다고 바꾸면 방금 기억한 것을 지워요
+ if(drawOk){lastTpl=rememberWriting();$('msg').textContent=lastTpl?`맞은 걸로 바꿨어요. 이 글씨를 '${lastTpl.k}'의 내 글씨로 기억해 둘게요.`:'맞은 걸로 바꿨어요.'}
+ else{forgetWriting(lastTpl);lastTpl=null;$('msg').textContent='틀린 걸로 바꿨어요.'}
  $('cTR').textContent=`맞힘 ${score}`;save();stats();
 }
 function judge(ok,btn){
@@ -704,17 +729,18 @@ $('exp').addEventListener('click',async()=>{const code=btoa(unescape(encodeURICo
 $('imp').addEventListener('click',()=>{try{const d=JSON.parse(decodeURIComponent(escape(atob($('moveTxt').value.trim()))));if(!d||typeof d!=='object')throw 0;store=merge(store,d);save();stats();$('moveMsg').textContent='불러왔어요. 기록이 합쳐졌어요.'}catch(e){$('moveMsg').textContent='코드가 올바르지 않아요. 다시 복사해 주세요.'}});
 
 /* 기록 초기화: 고른 종류만 지우고, 지운 시각을 남겨서 계정·다른 기기와 합칠 때 되살아나지 않게 해요 */
-const RESET_NAME={days:'푼 문제 수·연속 일수',miss:'자주 틀린 글자',wmiss:'자주 틀린 단어',known:'익힌 단어'};
+const RESET_NAME={days:'푼 문제 수·연속 일수',miss:'자주 틀린 글자',wmiss:'자주 틀린 단어',known:'익힌 단어',tpl:'기억한 내 글씨'};
 const resetPicked=()=>[...$$('#resetSeg button')].filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.k);
 function resetPaint(){const n=resetPicked().length;$('resetBtn').disabled=!n;$('resetAll').textContent=n===4?'전체 해제':'전체 선택'}
 $('resetSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));$('resetMsg').textContent='';resetPaint()});
-$('resetAll').addEventListener('click',()=>{const all=resetPicked().length===4;$$('#resetSeg button').forEach(b=>b.setAttribute('aria-pressed',String(!all)));$('resetMsg').textContent='';resetPaint()});
+$('resetAll').addEventListener('click',()=>{const all=resetPicked().length===$$('#resetSeg button').length;$$('#resetSeg button').forEach(b=>b.setAttribute('aria-pressed',String(!all)));$('resetMsg').textContent='';resetPaint()});
 $('resetBtn').addEventListener('click',()=>{
  const picked=resetPicked();if(!picked.length)return;
  $('resetText').textContent=`${picked.map(k=>RESET_NAME[k]).join(', ')} 기록을 지워요. 지운 기록은 되돌릴 수 없어요.`+(cloud?' 로그인한 계정에 저장된 기록도 같이 지워져요.':'');
  const d=$('resetDlg');if(d.showModal)d.showModal();else if(confirm($('resetText').textContent))doReset(picked);
 });
-$('resetDlg').addEventListener('close',()=>{const d=$('resetDlg');if(d.returnValue==='ok')doReset(resetPicked());d.returnValue=''});
+// '지우기' 버튼을 누를 때 바로 지워요 (dialog의 close 이벤트에 기대지 않아요)
+$('resetDlg').querySelector('button[value="ok"]').addEventListener('click',()=>doReset(resetPicked()));
 $('resetDlg').addEventListener('click',e=>{if(e.target===$('resetDlg'))$('resetDlg').close('cancel')});
 function doReset(picked){
  const t=Date.now();store.resets=store.resets||{};

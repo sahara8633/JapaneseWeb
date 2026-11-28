@@ -106,7 +106,7 @@ window.KanaMatch=(()=>{
    - 모든 후보 글자와 비교해서 정답이 가장 가깝거나 거의 같으면 정답이에요.
    픽셀이 얼마나 겹치는지 보는 방식보다 글자 비율·간격 차이(넓적한 く, 떨어진 ら의 점, 멀리 찍은 ゛)에 훨씬 덜 민감해요. */
 window.StrokeMatch=(()=>{
- const N=20,Q={asp:1,wDir:.35,miss:.5,rev:.08,lo:.1,hi:.45};
+ const N=20,K=4,Q={asp:1,wDir:.35,wStart:.6,sPow:2,sLen:.12,join:.04,miss:.5,rev:.08,lo:.1,hi:.45};
  const NS='http://www.w3.org/2000/svg';let host=null;
  const pathEl=d=>{if(!host){host=document.createElementNS(NS,'svg');host.setAttribute('width','0');host.setAttribute('height','0');host.setAttribute('aria-hidden','true');host.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden';document.body.append(host)}const p=document.createElementNS(NS,'path');p.setAttribute('d',d);host.append(p);return p};
  const len=pts=>{let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);return L};
@@ -123,21 +123,27 @@ window.StrokeMatch=(()=>{
   return out;
  }
  /* 획 묶음을 글자 단위로 정규화: 가운데를 0으로, 긴 변 기준 크기 1, 가로세로 비율은 asp만큼만 맞춰요 */
+ /* 획의 출발 방향: 처음 K칸(획 길이의 약 20%)을 지나는 방향. ら(아래로 출발)와 う(오른쪽으로 출발)를 가르는 데 써요.
+    e는 거꾸로 그었을 때의 출발 방향(=끝에서 거꾸로 K칸) */
+ const dirOf=(a,b)=>{const x=b[0]-a[0],y=b[1]-a[1],n=Math.hypot(x,y);return n>1e-6?[x/n,y/n]:null};
+ // 출발 방향은 글자 크기 기준 sLen만큼(획 길이 비율이 아니라) 지난 지점까지 봐요. 긴 획 끝의 짧은 꺾임(ら의 짧은 세로)도 잡히게요.
+ const stroke=p=>{const L=len(p),k=Math.min(N-1,Math.max(1,Math.round(Q.sLen/(L/(N-1)||1))));return {p,w:Math.min(1,Math.max(.3,L/.8)),s:dirOf(p[0],p[k]),e:dirOf(p[N-1],p[N-1-k])}};
+ const ang=(a,b)=>a&&b?(1-(a[0]*b[0]+a[1]*b[1]))/2:.25;
  function prep(strokes){
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   strokes.forEach(s=>s.forEach(([x,y])=>{if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}));
   const w=x1-x0,h=y1-y0,M=Math.max(w,h)||1,a=Q.asp,cx=(x0+x1)/2,cy=(y0+y1)/2;
   const sx=1/((1-a)*M+a*Math.max(w,M*.2)),sy=1/((1-a)*M+a*Math.max(h,M*.2));
-  return strokes.map(s=>{const p=resample(s.map(([x,y])=>[(x-cx)*sx,(y-cy)*sy]));return {p,w:Math.min(1,Math.max(.3,len(p)/.8))}});
+  return strokes.map(s=>stroke(resample(s.map(([x,y])=>[(x-cx)*sx,(y-cy)*sy]))));
  }
  const REF=new Map();
  function ref(ch){
   if(REF.has(ch))return REF.get(ch);
   const S=window.STROKES||{},cs=[...ch];
   if(!cs.every(c=>S[c])){REF.set(ch,null);return null}
-  const raw=[];
-  cs.forEach((c,ci)=>S[c].p.forEach(d=>{const el=pathEl(d),L=el.getTotalLength(),pts=[];for(let i=0;i<=40;i++){const q=el.getPointAtLength(L*i/40);pts.push([q.x+ci*109*.92,q.y])}el.remove();raw.push(pts)}));
-  const v=prep(raw);REF.set(ch,v);return v;
+  const raw=[],own=[];
+  cs.forEach((c,ci)=>S[c].p.forEach(d=>{own.push(ci);const el=pathEl(d),L=el.getTotalLength(),pts=[];for(let i=0;i<=40;i++){const q=el.getPointAtLength(L*i/40);pts.push([q.x+ci*109*.92,q.y])}el.remove();raw.push(pts)}));
+  const v=prep(raw);v.forEach((st,i)=>st.c=own[i]);REF.set(ch,v);return v;
  }
  function sdist(u,r){
   let pos=0,dir=0;
@@ -148,15 +154,24 @@ window.StrokeMatch=(()=>{
   }
   return pos/N+Q.wDir*dir/(N-1);
  }
- const pairCost=(u,r)=>Math.min(sdist(u.p,r.p),sdist(u.p.slice().reverse(),r.p)+Q.rev);
+ // 출발 방향은 긴 획일수록 크게 봐요. 점이나 짧은 획(ら·う의 윗점, 탁점)의 방향은 손떨림에 가까워서 거의 안 봐요.
+ const pairCost=(u,r)=>{const k=Q.wStart*Math.pow(Math.min(u.w,r.w),Q.sPow);return Math.min(sdist(u.p,r.p)+k*ang(u.s,r.s),sdist(u.p.slice().reverse(),r.p)+Q.rev+k*ang(u.e,r.s))};
  /* 획 짝짓기: 정답 획 집합(비트마스크)에 대한 동적 계획법. 남는 내 획, 빠진 정답 획은 miss×획 길이 가중치만큼 감점 */
+ /* 정답 쪽 '짝지을 단위': 획 하나씩 + 같은 글자 안에서 연달아 있는 두 획을 이은 것.
+    り·い·こ·け처럼 두 획을 이어서 한 번에 써도, 내 획 하나가 정답의 두 획과 짝지어질 수 있어요(조금만 감점). */
+ function units(R){
+  if(R._u)return R._u;
+  const u=R.map((r,j)=>({mask:1<<j,st:r,w:r.w,join:0}));
+  for(let j=0;j+1<R.length;j++){if(R[j].c!==R[j+1].c)continue;u.push({mask:(1<<j)|(1<<(j+1)),st:stroke(resample([...R[j].p,...R[j+1].p])),w:R[j].w+R[j+1].w,join:1})}
+  return R._u=u;
+ }
  function dist(U,R){
   // 획 길이 가중치(w)로 비용을 매겨서, 탁점 같은 짧은 획은 조금만 영향을 줘요
-  const n=U.length,m=R.length,C=U.map(u=>R.map(r=>pairCost(u,r)*(u.w+r.w)/2));
+  const n=U.length,m=R.length,UN=units(R),C=U.map(u=>UN.map(x=>(pairCost(u,x.st)+Q.join*x.join)*(u.w+x.w)/2));
   let dp=new Map([[0,0]]);
   for(let i=0;i<n;i++){
    const nx=new Map(),put=(k,v)=>{if(!nx.has(k)||nx.get(k)>v)nx.set(k,v)};
-   for(const [mask,c] of dp){put(mask,c+Q.miss*U[i].w);for(let j=0;j<m;j++)if(!(mask&1<<j))put(mask|1<<j,c+C[i][j])}
+   for(const [mask,c] of dp){put(mask,c+Q.miss*U[i].w);UN.forEach((x,j)=>{if(!(mask&x.mask))put(mask|x.mask,c+C[i][j])})}
    dp=nx;
   }
   let best=1e9;for(const [mask,c] of dp){let t=c;for(let j=0;j<m;j++)if(!(mask&1<<j))t+=Q.miss*R[j].w;if(t<best)best=t}
@@ -164,15 +179,18 @@ window.StrokeMatch=(()=>{
  }
  const pct=d=>Math.round(100*Math.min(1,Math.max(0,(Q.hi-d)/(Q.hi-Q.lo))));
  /* userStrokes: [[[x,y],...],...]. answers: 정답으로 인정하는 글자들, others: 함께 비교할 글자들 */
- function recognize(userStrokes,answers,others=[]){
+ function recognize(userStrokes,answers,others=[],extra=null){
   const strokes=userStrokes.filter(s=>s.length);
   if(!strokes.length)return null;
   if(!answers.every(a=>ref(a)))return undefined;
-  const U=prep(strokes),score=ch=>{const R=ref(ch);return R?dist(U,R):1e9};
+  const U=prep(strokes),score=ch=>{const R=ref(ch);let d=R?dist(U,R):1e9;if(extra)for(const T of extra(ch)||[])d=Math.min(d,dist(U,T));return d};
   const top=answers.map(a=>({ch:a,d:score(a)})).sort((x,y)=>x.d-y.d)[0];
   const rival=others.filter(o=>!answers.includes(o)).map(ch=>({ch,d:score(ch)})).sort((x,y)=>x.d-y.d)[0]||null;
-  return {d:top.d,pct:pct(top.d),answer:top.ch,rival:rival&&{...rival,pct:pct(rival.d)}};
+  return {d:top.d,pct:pct(top.d),answer:top.ch,rival:rival&&{...rival,pct:pct(rival.d)},user:U};
  }
  function warm(chars){let i=0;const step=()=>{const t=performance.now();while(i<chars.length&&performance.now()-t<12)ref(chars[i++]);if(i<chars.length)setTimeout(step,0)};step()}
- return {recognize,ref,prep,dist,pct,warm,_tune:o=>{Object.assign(Q,o)}};
+ /* 내 글씨를 짧은 글자열로 저장/복원해요 (Firestore는 배열 안 배열을 못 담아서). "x,y x,y ...|x,y ..." 소수 셋째 자리까지 */
+ const pack=U=>U.map(st=>st.p.map(([x,y])=>`${+x.toFixed(3)},${+y.toFixed(3)}`).join(' ')).join('|');
+ const unpack=str=>{try{const U=String(str).split('|').map(t=>t.split(' ').map(q=>q.split(',').map(Number)));return U.every(p=>p.length===N&&p.every(q=>q.length===2&&q.every(Number.isFinite)))?U.map(stroke):null}catch(e){return null}};
+ return {recognize,ref,prep,dist,pct,warm,pack,unpack,_tune:o=>{Object.assign(Q,o)}};
 })();
