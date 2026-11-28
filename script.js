@@ -76,6 +76,14 @@ if(!WMODES.includes(wcfg.mode))wcfg.mode='mean';
 let furi=true;
 try{const f=localStorage.getItem(KEY+'-furi');if(f)furi=f==='on'}catch(e){}
 const ruby=(w,y)=>furi&&y&&y!==w?`<ruby>${esc(w)}<rt>${esc(y)}</rt></ruby>`:esc(w);
+/* 설정: motion(움직임 줄이기) rotate(카드 글자 자동 전환) strict(글자 쓰기 채점 기준) learn(내 글씨 학습) */
+let prefs={motion:'off',rotate:'on',strict:'normal',learn:'on'};
+try{const p=JSON.parse(localStorage.getItem(KEY+'-prefs')||'null');if(p)prefs=Object.assign(prefs,p)}catch(e){}
+const savePrefs=()=>{try{localStorage.setItem(KEY+'-prefs',JSON.stringify(prefs))}catch(e){}};
+const applyPrefs=()=>{document.documentElement.dataset.motion=prefs.motion==='on'?'reduce':''};
+applyPrefs();
+/* 채점 기준: gap = 다른 글자보다 이만큼까지 멀어도 정답, cap = 이 거리보다 멀면 무조건 오답 */
+const STRICT={easy:{gap:.09,cap:.45},normal:{gap:.06,cap:.4},hard:{gap:.03,cap:.35}};
 const saveCfg=()=>{try{localStorage.setItem(KEY+'-cfg',JSON.stringify(cfg));localStorage.setItem(KEY+'-wcfg',JSON.stringify(wcfg))}catch(e){}};
 
 /* every kana question knows how it is shown (d); "섞어서" puts each kana in twice, once per script */
@@ -95,7 +103,7 @@ let subject='kana',quizMode='pick',qs=[],qi=0,score=0,wrong=[],locked=false,idle
 const show=k=>{['vSetup','vWSetup','vQuiz','vDone'].forEach(v=>$(v).hidden=v!==k);$('pPractice').classList.toggle('running',k==='vQuiz'||k==='vDone')};
 const setupView=()=>subject==='kana'?'vSetup':'vWSetup';
 const setCard=(t,lang='ja',rt='')=>{const el=$('kana'),n=[...t].length;if(rt&&rt!==t)el.innerHTML=`<ruby>${esc(t)}<rt>${esc(rt)}</rt></ruby>`;else el.textContent=t;el.lang=lang;el.className='kana'+(lang==='ko'?' ko':'')+(n<=1?'':n<=2?' small':n<=4?' w3':n<=7?' w5':' w8')};
-const still=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const still=()=>prefs.motion==='on'||matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* slide el out to one side, swap its content, slide it back in from the other side */
 /* 늦게 끝난 애니메이션이 새 내용을 예전 글자로 덮어쓰지 않게, 마지막으로 시작한 slide만 바꿔요 */
 const stopSlide=el=>{el._slide=(el._slide||0)+1;el.getAnimations().forEach(a=>a.cancel())};
@@ -173,7 +181,7 @@ function showIdle(dir){
  const paint=()=>{if(x.t==='kana'){setCard(x.d);$('cBot').textContent=x.r}else{setCard(x.w,'ja',furi?x.y:'');$('cBot').textContent=`${x.y} · ${x.m}`}$('cBot').style.color='var(--muted)'};
  dir?slide($('kana'),dir,paint):paint();
 }
-setInterval(()=>{if(!document.hidden&&!$('pPractice').hidden&&!$(setupView()).hidden)showIdle(1)},3500);
+setInterval(()=>{if(prefs.rotate==='on'&&!document.hidden&&!$('pPractice').hidden&&!$(setupView()).hidden)showIdle(1)},3500);
 function idle(){
  stopSlide($('kana'));show(setupView());$('bar').style.width='0';$('stamp').classList.remove('on');
  $('cTL').textContent='';$('cTR').textContent='';showIdle();stats();
@@ -303,8 +311,9 @@ function grade(q){
  let r=SM?SM.recognize(lines,alts,others,myShapes):undefined,ok,why='';lastWriting=r&&r.user?{ch:r.answer,u:r.user}:null;lastTpl=null;
  if(r){
   const gap=r.rival?r.d-r.rival.d:-1;
-  ok=r.d<=.4&&gap<=.06;
-  if(!ok)why=r.rival&&gap>.06?(plain(r.rival.ch)===plain(r.answer)&&plain(r.rival.ch)===r.rival.ch?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':`${r.rival.ch}처럼 보여요. `):'모양이 많이 달라요. ';
+  const st=STRICT[prefs.strict]||STRICT.normal;
+  ok=r.d<=st.cap&&gap<=st.gap;
+  if(!ok)why=r.rival&&gap>st.gap?(plain(r.rival.ch)===plain(r.answer)&&plain(r.rival.ch)===r.rival.ch?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':`${r.rival.ch}처럼 보여요. `):'모양이 많이 달라요. ';
  }else{
   const m=window.KanaMatch?window.KanaMatch.compare(pad,alts,others):undefined;
   r=m&&{pct:m.pct};ok=m?!m.noDot&&m.pct>=PASS:true;if(!ok&&m)why=m.noDot?'탁점(゛)이나 반탁점(゜)이 빠진 것 같아요. ':'모양이 많이 달라요. ';
@@ -347,7 +356,7 @@ function flipGrade(){
  $('padScore').classList.toggle('ok',drawOk);$('padScore').classList.toggle('bad',!drawOk);
  $('gradeFlip').textContent=drawOk?'채점 바꾸기: 사실 틀렸어요':'채점 바꾸기: 사실 맞게 썼어요';
  // 맞게 썼다고 바꾸면 그 글씨를 기억하고, 다시 틀렸다고 바꾸면 방금 기억한 것을 지워요
- if(drawOk){lastTpl=rememberWriting();$('msg').textContent=lastTpl?`맞은 걸로 바꿨어요. 이 글씨를 '${lastTpl.k}'의 내 글씨로 기억해 둘게요.`:'맞은 걸로 바꿨어요.'}
+ if(drawOk){lastTpl=prefs.learn==='on'?rememberWriting():null;$('msg').textContent=lastTpl?`맞은 걸로 바꿨어요. 이 글씨를 '${lastTpl.k}'의 내 글씨로 기억해 둘게요.`:'맞은 걸로 바꿨어요.'}
  else{forgetWriting(lastTpl);lastTpl=null;$('msg').textContent='틀린 걸로 바꿨어요.'}
  $('cTR').textContent=`맞힘 ${score}`;save();stats();
 }
@@ -526,7 +535,7 @@ function fcIdle(dir){
  $('fcPos').textContent=$('fcPos2').textContent='';$('fcHint').textContent='눌러서 뒤집기';
  fcFace(fcCur,dir);
 }
-setInterval(()=>{if(!document.hidden&&view==='cards'&&studyView==='cards'&&!$('vFcSetup').hidden&&!$('flip').classList.contains('on'))fcIdle(1)},4000);
+setInterval(()=>{if(prefs.rotate==='on'&&!document.hidden&&view==='cards'&&studyView==='cards'&&!$('vFcSetup').hidden&&!$('flip').classList.contains('on'))fcIdle(1)},4000);
 
 /* 카드로 외우기: 고른 수만큼 단어를 뽑아서, 알아요를 누를 때까지 다시 나와요 */
 let queue=[],tries=new Map(),fcTotal=0,fcLearned=0,fcRunId=0;
@@ -672,12 +681,12 @@ $('sQuit').addEventListener('click',()=>{sView.stop();fcHome()});
 
 /* events: tabs */
 /* 메뉴는 두 단계예요: 문제(글자·단어), 연습(쓰기·외우기), 기록, 관리. 화면 이름(view)은 그대로 kana·word·write·cards·records·admin */
-const GROUP={kana:'quiz',word:'quiz',write:'practice',cards:'practice',records:'records',admin:'admin'},GROUPS=['quiz','practice','records','admin'],SUBS={quiz:['kana','word'],practice:['write','cards']};
+const GROUP={kana:'quiz',word:'quiz',write:'practice',cards:'practice',records:'records',settings:'settings',admin:'admin'},GROUPS=['quiz','practice','records','settings','admin'],SUBS={quiz:['kana','word'],practice:['write','cards']};
 const lastSub={quiz:'kana',practice:'write'};
-const TABS=['kana','word','write','cards','records','admin'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords',admin:'pAdmin'};
+const TABS=['kana','word','write','cards','records','settings','admin'],PANEL={kana:'pPractice',word:'pPractice',write:'pWrite',cards:'pCards',records:'pRecords',settings:'pSettings',admin:'pAdmin'};
 let view='kana';
 const panelOf=name=>name==='cards'&&studyView==='study'?'pStudy':PANEL[name];
-function tabPanels(){for(const id of ['pPractice','pWrite','pCards','pStudy','pRecords','pAdmin'])$(id).hidden=id!==panelOf(view)}
+function tabPanels(){for(const id of ['pPractice','pWrite','pCards','pStudy','pRecords','pSettings','pAdmin'])$(id).hidden=id!==panelOf(view)}
 const tab=(name,first)=>{
  if(name==='admin'&&!adminFind)name='kana';
  const prev=view;view=name;document.body.dataset.view=name;
@@ -691,6 +700,7 @@ const tab=(name,first)=>{
  if(name==='kana'||name==='word')$('pPractice').setAttribute('aria-labelledby',name==='word'?'tWord':'tKana');
  history.replaceState(null,'',name==='kana'?location.pathname+location.search:'#'+name);
  if(name==='records')stats();
+ if(name==='settings')paintPrefs();
  if(name==='admin'&&!adminUsers)adminLoad();
  if((name==='kana'||name==='word')&&name!==subject){run++;subject=name;idle()}
  if(name==='write'&&prev!=='write'){wsRender();wsEnds();wPad.clear();wsView.play()}
@@ -819,17 +829,30 @@ $('adminEmail').addEventListener('input',adminList);
 $('adminForm').addEventListener('submit',e=>{e.preventDefault();const rows=$$('.userRow');if(rows.length===1)rows[0].click()});
 $('adminReload').addEventListener('click',adminLoad);
 
+/* 설정 화면 */
+function paintPrefs(){
+ $$('.prefSw').forEach(sw=>{const k=sw.dataset.pref,btns=[...sw.children];btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===prefs[k])));paintSw(sw,Math.max(0,btns.findIndex(b=>b.dataset.v===prefs[k])))});
+ paintTheme();paintFuri();paintTpl();
+}
+function paintTpl(){
+ const t=store.tpl||{},keys=Object.keys(t).sort();
+ $('tplList').innerHTML=keys.length?keys.map(k=>`<button type="button" class="chip" data-k="${esc(k)}" title="${esc(k)} 내 글씨 지우기"><b lang="ja">${esc(k)}</b>${t[k].length}개 ✕</button>`).join(''):'<span class="note" style="margin:0">아직 기억한 글씨가 없어요.</span>';
+}
+$$('.prefSw button').forEach(b=>b.addEventListener('click',()=>{const k=b.parentElement.dataset.pref;prefs[k]=b.dataset.v;savePrefs();applyPrefs();paintPrefs()}));
+$('tplList').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;Reflect.deleteProperty(store.tpl,b.dataset.k);save();paintTpl()});
+
 /* theme: follows the system until the user picks one */
 const dark=matchMedia('(prefers-color-scheme: dark)');
 const theme=()=>document.documentElement.dataset.theme||(dark.matches?'dark':'light');
-const paintTheme=()=>{const t=theme();$$('#themeSw button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===t)));paintSw($('themeSw'),['light','dark','mix'].indexOf(t))};
-$$('#themeSw button').forEach(b=>b.addEventListener('click',()=>{document.documentElement.dataset.theme=b.dataset.v;try{localStorage.setItem('kana-theme',b.dataset.v)}catch(e){}paintTheme()}));
+const themeChoice=()=>document.documentElement.dataset.theme||'auto';
+const paintTheme=()=>{const t=themeChoice();$$('#themeSw button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===t)));paintSw($('themeSw'),['auto','light','dark','mix'].indexOf(t))};
+$$('#themeSw button').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.v;if(v==='auto'){delete document.documentElement.dataset.theme;try{localStorage.removeItem('kana-theme')}catch(e){}}else{document.documentElement.dataset.theme=v;try{localStorage.setItem('kana-theme',v)}catch(e){}}paintTheme()}));
 dark.addEventListener('change',paintTheme);
 paintTheme();
 
 paintCfg();paintW();idle();wsGrid();paintFuri();fcPaint();fcIdle();
 const h=location.hash.slice(1);tab(TABS.includes(h)?h:'kana',true);
-$('syncMsg').textContent='기록은 이 브라우저에 저장돼요. 다른 브라우저로 옮기려면 아래 기록 옮기기를 쓰세요.';
+$('syncMsg').textContent='기록은 이 브라우저에 저장돼요. 다른 브라우저로 옮기려면 설정의 기록 옮기기를 쓰세요.';
 
 /* hook for sync.js: it reads the store, merges in what the account has, and receives every later save */
 window.kanaSync={
@@ -837,7 +860,7 @@ window.kanaSync={
  mergeIn:d=>{store=merge(store,d||{});try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}stats();fcPaint();return JSON.parse(JSON.stringify(store))},
  attach:c=>{cloud=c},
  detach:()=>{cloud=null;clearTimeout(wTimer)},
- status:t=>{$('syncMsg').textContent=t},
+ status:t=>{$('syncMsg').textContent=t;$('acctInfo').textContent=t},
  admin:setAdmin
 };
 }
